@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  volautomatiq-mcp:
+    build: .
+    image: volautomatiq-mcp:latest
+    container_name: volautomatiq-mcp
+    volumes:
+      - ./data:/data
+      - ./dumps:/data/dumps
+      - ./reports:/data/reports
+    stdin_open: true
+    tty: true
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  volautomatiq-api:
+    build: .
+    image: volautomatiq-mcp:latest
+    container_name: volautomatiq-api
+    command: ["python", "-m", "volautomatiq.cli", "serve"]
+    ports:
+      - "5555:5555"
+    volumes:
+      - ./data:/data
+      - ./dumps:/data/dumps
+      - ./reports:/data/reports
+    environment:
+      - PYTHONUNBUFFERED=1

@@ -1,6 +1,6 @@
 # VolAutomatiq
 
-Automated Volatility memory forensics scanner with interactive HTML reporting.
+Automated Volatility memory forensics scanner with interactive HTML reporting and MCP server for Claude AI integration.
 
 ## Description
 
@@ -13,6 +13,7 @@ VolAutomatiq is a Python tool that automates memory forensics analysis using the
 - **Resizable Side Panel**: Customizable detail panel with localStorage persistence
 - **Detailed Process Information**: Aggregates data from multiple plugins (offsets, threads, handles, network connections, command lines, SIDs, DLLs)
 - **On-Demand Analysis**: Run handles and filescan plugins directly from the HTML report via API server
+- **MCP Server**: Enable Claude AI to autonomously perform memory forensics analysis
 
 ## Requirements
 
@@ -106,13 +107,19 @@ volautomatiq/
 │   ├── reporter.py      # HTML report generation
 │   ├── parser.py        # Output parsing and data aggregation
 │   ├── api_server.py    # Flask API for on-demand plugins
+│   ├── mcp_server.py    # MCP server for Claude AI integration
 │   └── templates/
 │       └── report.html  # Interactive HTML template
+├── Dockerfile           # Docker containerization
+├── docker-compose.yml   # Docker Compose configuration
 ├── pyproject.toml
-└── README.md
+├── README.md
+└── MCP_SETUP.md        # MCP server setup guide
 ```
 
-## Workflow Example
+## Workflow Examples
+
+### Standard CLI Usage
 
 ```bash
 # Step 1: Run initial scan
@@ -120,13 +127,40 @@ volautomatiq -f memory.dump --profile Win7SP1x64 -o report.html
 
 # Step 2: Open report.html in browser
 
-# Step 3: Start API server (in another terminal)
-volautomatiq-server -f memory.dump --profile Win7SP1x64
+# Step 3: Start API server (automatically started in background)
+# Or manually: volautomatiq-server -f memory.dump --profile Win7SP1x64
 
 # Step 4: Use on-demand features in the HTML report
 # - Enter PID and click "Run Handles"
 # - Enter filename and click "Run FileScan"
 ```
+
+### MCP Server for Claude AI
+
+```bash
+# Build Docker image
+docker build -t volautomatiq-mcp .
+
+# Configure Claude Desktop (see MCP_SETUP.md)
+
+# Then ask Claude:
+"Claude, analyze the memory dump at /data/win7crypto.vmem
+and identify suspicious processes"
+```
+
+Claude will autonomously use VolAutomatiq tools to perform the analysis!
+
+## MCP Integration
+
+VolAutomatiq includes an MCP (Model Context Protocol) server that allows Claude AI to autonomously perform memory forensics. See [MCP_SETUP.md](MCP_SETUP.md) for detailed setup instructions.
+
+**Available MCP Tools:**
+- `scan_memory_image` - Full Volatility scan
+- `list_processes` - List all processes
+- `search_process` - Search by name/PID
+- `dump_process` - Dump executable
+- `analyze_suspicious_processes` - Auto-detect malware
+- And more...
 
 ## License
 

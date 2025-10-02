@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "volautomatiq": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-v",
+        "${workspaceFolder}:/data",
+        "volautomatiq-mcp"
+      ],
+      "env": {}
+    }
+  }
+}
