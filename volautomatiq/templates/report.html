@@ -151,6 +151,146 @@
             font-size: 0.875rem;
         }
 
+        /* On-Demand Analysis Section */
+        .on-demand-container {
+            background: var(--bg-secondary);
+            padding: 1rem 2rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .on-demand-wrapper {
+            display: flex;
+            gap: 1rem;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .on-demand-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .on-demand-label {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .on-demand-input {
+            padding: 0.5rem 0.75rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 0.375rem;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            min-width: 200px;
+        }
+
+        .on-demand-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .on-demand-btn {
+            padding: 0.5rem 1rem;
+            background: var(--accent);
+            color: var(--text-primary);
+            border: none;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .on-demand-btn:hover {
+            background: var(--accent-hover);
+        }
+
+        .on-demand-btn:disabled {
+            background: var(--bg-tertiary);
+            color: var(--text-muted);
+            cursor: not-allowed;
+        }
+
+        /* Modal for results */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-secondary);
+            border: 2px solid var(--accent);
+            border-radius: 0.5rem;
+            padding: 2rem;
+            max-width: 90%;
+            max-height: 80%;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .modal-title {
+            color: var(--accent);
+            font-size: 1.5rem;
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+        }
+
+        .modal-body {
+            color: var(--text-primary);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+        }
+
+        .spinner {
+            border: 3px solid var(--bg-tertiary);
+            border-top: 3px solid var(--accent);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
         /* Process Detail Panel (Top) */
         .process-detail {
             display: none;
@@ -534,6 +674,55 @@
         </div>
     </div>
 
+    <div class="on-demand-container">
+        <div class="on-demand-wrapper">
+            <div class="on-demand-group">
+                <label class="on-demand-label">Handles (by PID)</label>
+                <div style="display: flex; gap: 0.5rem;">
+                    <input
+                        type="number"
+                        class="on-demand-input"
+                        id="handlesPid"
+                        placeholder="Enter PID..."
+                        style="min-width: 150px;"
+                    >
+                    <button class="on-demand-btn" onclick="runHandles()">Run Handles</button>
+                </div>
+            </div>
+            <div class="on-demand-group">
+                <label class="on-demand-label">FileScan (grep filter)</label>
+                <div style="display: flex; gap: 0.5rem;">
+                    <input
+                        type="text"
+                        class="on-demand-input"
+                        id="filescanGrep"
+                        placeholder="Enter filename to search..."
+                    >
+                    <button class="on-demand-btn" onclick="runFilescan()">Run FileScan</button>
+                </div>
+            </div>
+            <div class="on-demand-group">
+                <label class="on-demand-label" style="opacity: 0;">Server</label>
+                <div id="serverStatus" style="font-size: 0.75rem; color: var(--text-muted); padding: 0.5rem 0;">
+                    Server: <span id="serverIndicator">⚫ Not Connected</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for on-demand results -->
+    <div class="modal" id="resultsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">Results</h2>
+                <button class="modal-close" onclick="closeModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div id="modalContent" class="output"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- Top panel for search results -->
     <div class="process-detail" id="processDetail">
         <div class="process-detail-header">
@@ -600,7 +789,10 @@
             "PDB": "Page Directory Base - physical address of the process's page directory",
             "Command Line": "Full command line used to launch this process",
             "Network Connections": "Active network connections associated with this process",
-            "Tree Level": "Hierarchical level in the process tree (0 = root)"
+            "Tree Level": "Hierarchical level in the process tree (0 = root)",
+            "SIDs": "Security Identifiers (SIDs) associated with this process",
+            "DLL Count": "Number of DLLs (Dynamic Link Libraries) loaded by this process",
+            "DLLs": "List of DLLs loaded by this process"
         };
 
         // Field ordering - important fields first, then full-width at the end
@@ -616,9 +808,15 @@
             "Wow64",
             "Start Time",
             "Tree Level",
+            "DLL Count",
             "Command Line",
-            "Network Connections"
+            "Network Connections",
+            "SIDs",
+            "DLLs"
         ];
+
+        // Full-width fields (take entire row)
+        const fullWidthFields = ["Command Line", "Network Connections", "SIDs", "DLLs"];
 
         // Current active tab
         let currentTab = 'pslist';
@@ -717,7 +915,7 @@
                 const item = document.createElement('div');
 
                 // Full width for long fields
-                if (key === 'Command Line' || key === 'Network Connections') {
+                if (fullWidthFields.includes(key)) {
                     item.className = 'detail-item full-width';
                 } else {
                     item.className = 'detail-item';
@@ -882,6 +1080,162 @@
                 localStorage.setItem('sidePanelWidth', sidePanel.offsetWidth);
             }
         });
+
+        // API Configuration
+        const API_BASE = 'http://{{ api_server_info.host }}:{{ api_server_info.port }}';
+        let serverConnected = false;
+
+        // Check server status on load
+        async function checkServerStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/api/status`, {
+                    method: 'GET',
+                    signal: AbortSignal.timeout(2000)
+                });
+
+                if (response.ok) {
+                    serverConnected = true;
+                    document.getElementById('serverIndicator').innerHTML = '🟢 Connected';
+                    document.getElementById('serverIndicator').style.color = 'var(--success)';
+                } else {
+                    throw new Error('Server not responding');
+                }
+            } catch (error) {
+                serverConnected = false;
+                document.getElementById('serverIndicator').innerHTML = '⚫ Not Connected';
+                document.getElementById('serverIndicator').style.color = 'var(--text-muted)';
+            }
+        }
+
+        // Run handles plugin
+        async function runHandles() {
+            const pid = document.getElementById('handlesPid').value;
+
+            if (!pid) {
+                alert('Please enter a PID');
+                return;
+            }
+
+            if (!serverConnected) {
+                alert('API server not connected. Please start the server:\nvolautomatiq-server -f "{{ image_path }}" --profile "{{ profile }}"');
+                return;
+            }
+
+            showLoading('Handles', `Running handles for PID ${pid}...`);
+
+            try {
+                const response = await fetch(`${API_BASE}/api/handles`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ pid: parseInt(pid) })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showResults('Handles', `Handles for PID ${pid}`, data.output, data.duration);
+                } else {
+                    showError('Handles', data.error || 'Unknown error');
+                }
+            } catch (error) {
+                showError('Handles', error.message);
+            }
+        }
+
+        // Run filescan plugin
+        async function runFilescan() {
+            const grep = document.getElementById('filescanGrep').value;
+
+            if (!serverConnected) {
+                alert('API server not connected. Please start the server:\nvolautomatiq-server -f "{{ image_path }}" --profile "{{ profile }}"');
+                return;
+            }
+
+            showLoading('FileScan', grep ? `Searching for files matching "${grep}"...` : 'Running filescan...');
+
+            try {
+                const response = await fetch(`${API_BASE}/api/filescan`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ grep: grep || '' })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const title = grep ? `FileScan results for "${grep}"` : 'FileScan results';
+                    showResults('FileScan', title, data.output, data.duration);
+                } else {
+                    showError('FileScan', data.error || 'Unknown error');
+                }
+            } catch (error) {
+                showError('FileScan', error.message);
+            }
+        }
+
+        // Show loading modal
+        function showLoading(plugin, message) {
+            const modal = document.getElementById('resultsModal');
+            const title = document.getElementById('modalTitle');
+            const content = document.getElementById('modalContent');
+
+            title.textContent = plugin;
+            content.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>${message}</p>
+                </div>
+            `;
+
+            modal.classList.add('active');
+        }
+
+        // Show results modal
+        function showResults(plugin, title, output, duration) {
+            const modalTitle = document.getElementById('modalTitle');
+            const content = document.getElementById('modalContent');
+
+            modalTitle.textContent = `${plugin} - ${duration.toFixed(1)}s`;
+            content.innerHTML = `
+                <h3 style="margin-bottom: 1rem;">${title}</h3>
+                <pre class="output">${output || 'No results found'}</pre>
+            `;
+        }
+
+        // Show error modal
+        function showError(plugin, error) {
+            const modalTitle = document.getElementById('modalTitle');
+            const content = document.getElementById('modalContent');
+
+            modalTitle.textContent = plugin + ' - Error';
+            content.innerHTML = `
+                <div class="error-message">
+                    <strong>Error:</strong> ${error}
+                </div>
+            `;
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('resultsModal').classList.remove('active');
+        }
+
+        // Close modal on background click
+        document.getElementById('resultsModal').addEventListener('click', (e) => {
+            if (e.target.id === 'resultsModal') {
+                closeModal();
+            }
+        });
+
+        // Check server status on load
+        checkServerStatus();
+
+        // Check server status periodically
+        setInterval(checkServerStatus, 10000);
     </script>
 </body>
 </html>

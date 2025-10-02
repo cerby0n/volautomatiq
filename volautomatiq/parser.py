@@ -223,6 +223,87 @@ class VolatilityParser:
                 if not proc.details.get("PPID"):
                     proc.add_detail("PPID", ppid)
 
+    def parse_getsids(self, output: str):
+        """Parse getsids output.
+
+        Expected format:
+        System (4)
+        S-1-5-18 (Local System)
+        S-1-5-32-544 (Administrators)
+        """
+        lines = output.strip().split('\n')
+        current_pid = None
+        sids = []
+
+        for line in lines:
+            if not line.strip():
+                continue
+
+            # Process name line: "explorer.exe (1860)"
+            match = re.match(r'^(.+?)\s+\((\d+)\)', line)
+            if match:
+                # Save previous process SIDs
+                if current_pid is not None and sids:
+                    proc = self._get_or_create_process(current_pid)
+                    proc.add_detail("SIDs", '\n'.join(sids))
+
+                # Start new process
+                current_pid = int(match.group(2))
+                sids = []
+            elif current_pid is not None and line.startswith('S-'):
+                # SID line
+                sids.append(line.strip())
+
+        # Save last process
+        if current_pid is not None and sids:
+            proc = self._get_or_create_process(current_pid)
+            proc.add_detail("SIDs", '\n'.join(sids))
+
+    def parse_dlllist(self, output: str):
+        """Parse dlllist output.
+
+        Expected format:
+        explorer.exe pid: 1860
+        Command line : C:\Windows\Explorer.EXE
+
+        Base                             Size          LoadCount Path
+        0x00000000010f0000              0x2ca000           0xffff C:\Windows\Explorer.EXE
+        0x0000000077530000              0x1a9000           0xffff C:\Windows\SYSTEM32\ntdll.dll
+        """
+        lines = output.strip().split('\n')
+        current_pid = None
+        dlls = []
+
+        for line in lines:
+            if not line.strip():
+                continue
+
+            # Process header: "explorer.exe pid: 1860"
+            if 'pid:' in line:
+                # Save previous process DLLs
+                if current_pid is not None and dlls:
+                    proc = self._get_or_create_process(current_pid)
+                    proc.add_detail("DLL Count", str(len(dlls)))
+                    proc.add_detail("DLLs", '\n'.join(dlls[:20]))  # Limit to first 20 DLLs
+
+                # Extract PID
+                match = re.search(r'pid:\s*(\d+)', line)
+                if match:
+                    current_pid = int(match.group(1))
+                    dlls = []
+            elif current_pid is not None and line.startswith('0x'):
+                # DLL line: extract path (last column)
+                parts = line.split()
+                if len(parts) >= 4:
+                    dll_path = parts[-1]
+                    dlls.append(dll_path)
+
+        # Save last process
+        if current_pid is not None and dlls:
+            proc = self._get_or_create_process(current_pid)
+            proc.add_detail("DLL Count", str(len(dlls)))
+            proc.add_detail("DLLs", '\n'.join(dlls[:20]))
+
     def parse_all(self, results: list) -> list[dict]:
         """Parse all plugin results and return aggregated process data.
 
@@ -246,6 +327,10 @@ class VolatilityParser:
                 self.parse_netscan(result.output)
             elif result.plugin == 'pstree':
                 self.parse_pstree(result.output)
+            elif result.plugin == 'getsids':
+                self.parse_getsids(result.output)
+            elif result.plugin == 'dlllist':
+                self.parse_dlllist(result.output)
 
         # Convert to list and sort by PID
         process_list = [p.to_dict() for p in self.processes.values()]

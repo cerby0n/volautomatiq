@@ -30,6 +30,8 @@ class VolatilityScanner:
         "pstree",
         "netscan",
         "cmdline",
+        "getsids",
+        "dlllist",
         "iehistory",
     ]
 
@@ -48,6 +50,81 @@ class VolatilityScanner:
 
         if not self.image_path.exists():
             raise FileNotFoundError(f"Memory image not found: {image_path}")
+
+    def run_on_demand(self, plugin: str, pid: Optional[int] = None, grep: Optional[str] = None) -> ScanResult:
+        """Execute a plugin on-demand with optional filters.
+
+        Args:
+            plugin: Plugin name (e.g., 'handles', 'filescan')
+            pid: Process ID filter (for handles)
+            grep: String to grep for (for filescan)
+
+        Returns:
+            ScanResult with output and metadata
+        """
+        cmd = [self.vol_path, "-f", str(self.image_path)]
+
+        if self.profile:
+            cmd.extend(["--profile", self.profile])
+
+        cmd.append(plugin)
+
+        if pid is not None:
+            cmd.extend(["-p", str(pid)])
+
+        print(f"  Running {plugin} on-demand...", flush=True)
+        start_time = datetime.now()
+
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=300,
+            )
+
+            duration = (datetime.now() - start_time).total_seconds()
+            output = result.stdout
+
+            # Apply grep filter if specified
+            if grep and result.returncode == 0:
+                filtered_lines = [line for line in output.split('\n') if grep.lower() in line.lower()]
+                output = '\n'.join(filtered_lines)
+
+            if result.returncode == 0:
+                return ScanResult(
+                    plugin=plugin,
+                    output=output,
+                    success=True,
+                    duration=duration,
+                )
+            else:
+                return ScanResult(
+                    plugin=plugin,
+                    output=output,
+                    success=False,
+                    error=result.stderr,
+                    duration=duration,
+                )
+
+        except subprocess.TimeoutExpired:
+            duration = (datetime.now() - start_time).total_seconds()
+            return ScanResult(
+                plugin=plugin,
+                output="",
+                success=False,
+                error=f"Plugin timed out after {duration:.1f} seconds",
+                duration=duration,
+            )
+        except Exception as e:
+            duration = (datetime.now() - start_time).total_seconds()
+            return ScanResult(
+                plugin=plugin,
+                output="",
+                success=False,
+                error=str(e),
+                duration=duration,
+            )
 
     def _run_plugin(self, plugin: str, profile: Optional[str] = None) -> ScanResult:
         """Execute a single Volatility plugin.

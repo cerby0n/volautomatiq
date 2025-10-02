@@ -46,12 +46,17 @@ class HTMLReporter:
         # Prepare context data
         context = {
             "image_name": Path(image_path).name,
+            "image_path": str(Path(image_path).absolute()),
             "profile": profile,
             "scan_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "results": results,
             "total_count": len(results),
             "successful_count": sum(1 for r in results if r.success),
             "process_data": process_data,
+            "api_server_info": {
+                "host": "127.0.0.1",
+                "port": 5555,
+            },
         }
 
         # Render template

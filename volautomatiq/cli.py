@@ -7,6 +7,7 @@ from pathlib import Path
 from . import __version__
 from .reporter import HTMLReporter
 from .scanner import VolatilityScanner
+from .api_server import VolatilityAPIServer
 
 
 def main():
@@ -119,6 +120,79 @@ For more information, visit: https://github.com/yourusername/volautomatiq
     except KeyboardInterrupt:
         print("\n[!] Scan interrupted by user", file=sys.stderr)
         sys.exit(130)
+
+    except Exception as e:
+        print(f"\n[!] Fatal error: {e}", file=sys.stderr)
+        import traceback
+
+        traceback.print_exc()
+        sys.exit(1)
+
+
+def serve():
+    """Start API server for on-demand plugin execution."""
+    parser = argparse.ArgumentParser(
+        prog="volautomatiq-server",
+        description="API server for on-demand Volatility plugin execution",
+    )
+
+    parser.add_argument(
+        "-f",
+        "--file",
+        dest="image_path",
+        required=True,
+        help="Path to memory dump file",
+    )
+
+    parser.add_argument(
+        "--profile",
+        dest="profile",
+        required=True,
+        help="Volatility profile (e.g., Win7SP1x64)",
+    )
+
+    parser.add_argument(
+        "--vol-path",
+        dest="vol_path",
+        default="vol.py",
+        help="Path to Volatility executable (default: vol.py)",
+    )
+
+    parser.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help="Host to bind to (default: 127.0.0.1)",
+    )
+
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=5555,
+        help="Port to bind to (default: 5555)",
+    )
+
+    args = parser.parse_args()
+
+    # Validate image path exists
+    if not Path(args.image_path).exists():
+        print(f"[!] Error: Memory image not found: {args.image_path}", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        # Initialize scanner
+        scanner = VolatilityScanner(
+            image_path=args.image_path,
+            profile=args.profile,
+            vol_path=args.vol_path,
+        )
+
+        # Start API server
+        api_server = VolatilityAPIServer(scanner)
+        api_server.run(host=args.host, port=args.port)
+
+    except KeyboardInterrupt:
+        print("\n[!] Server stopped by user")
+        sys.exit(0)
 
     except Exception as e:
         print(f"\n[!] Fatal error: {e}", file=sys.stderr)

@@ -6,10 +6,13 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "jinja2>=3.1.2",
+    "flask>=3.0.0",
+    "flask-cors>=4.0.0",
 ]
 
 [project.scripts]
 volautomatiq = "volautomatiq.cli:main"
+volautomatiq-server = "volautomatiq.cli:serve"
 
 [build-system]
 requires = ["hatchling"]
