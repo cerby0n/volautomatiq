@@ -906,6 +906,19 @@
                 </div>
             </div>
             <div class="on-demand-group">
+                <label class="on-demand-label">DumpFiles (by Offset)</label>
+                <div style="display: flex; gap: 0.5rem;">
+                    <input
+                        type="text"
+                        class="on-demand-input"
+                        id="dumpfilesOffset"
+                        placeholder="Enter offset (e.g., 0x12345678)..."
+                        style="min-width: 200px;"
+                    >
+                    <button class="on-demand-btn" onclick="runDumpfiles()">Run DumpFiles</button>
+                </div>
+            </div>
+            <div class="on-demand-group">
                 <label class="on-demand-label">API Server</label>
                 <div style="display: flex; flex-direction: column; gap: 0.5rem;">
                     <div id="serverStatus" style="font-size: 0.75rem; color: var(--text-muted);">
@@ -939,7 +952,10 @@
             <button class="close-detail" onclick="closeProcessDetail()">✕ Close</button>
         </div>
         <div class="detail-grid" id="detailGrid"></div>
-        <button class="mark-finding-btn" id="markFindingBtn" onclick="markAsFinding()">🔖 Mark as Finding</button>
+        <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+            <button class="mark-finding-btn" id="markFindingBtn" onclick="markAsFinding()">🔖 Mark as Finding</button>
+            <button class="mark-finding-btn" style="background: var(--accent);" onclick="dumpProcess()">💾 Dump Process</button>
+        </div>
     </div>
 
     <!-- Side panel for pstree clicks -->
@@ -950,7 +966,10 @@
             <button class="close-detail" onclick="closeSidePanel()">✕</button>
         </div>
         <div class="detail-grid" id="sidePanelGrid"></div>
-        <button class="mark-finding-btn" id="markFindingSideBtn" onclick="markAsFindingSide()">🔖 Mark as Finding</button>
+        <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+            <button class="mark-finding-btn" id="markFindingSideBtn" onclick="markAsFindingSide()">🔖 Mark as Finding</button>
+            <button class="mark-finding-btn" style="background: var(--accent);" onclick="dumpProcessSide()">💾 Dump Process</button>
+        </div>
     </div>
 
     <div class="tabs" id="tabs">
@@ -1415,6 +1434,73 @@
             }
         }
 
+        // Run dumpfiles plugin with manual offset
+        async function runDumpfiles() {
+            const offset = document.getElementById('dumpfilesOffset').value.trim();
+
+            if (!offset) {
+                alert('Please enter a physical offset (e.g., 0x12345678)');
+                return;
+            }
+
+            if (!serverConnected) {
+                alert('API server not connected. Please start the server:\nvolautomatiq-server -f "{{ image_path }}" --profile "{{ profile }}"');
+                return;
+            }
+
+            // Validate offset format
+            if (!offset.match(/^0x[0-9a-fA-F]+$/)) {
+                alert('Invalid offset format. Please use hexadecimal format (e.g., 0x12345678)');
+                return;
+            }
+
+            showLoading('DumpFiles', `Dumping files from memory at offset ${offset}...`);
+
+            try {
+                const response = await fetch(`${API_BASE}/api/procdump`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        offset: offset,
+                        output_dir: './dumps'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const modalTitle = document.getElementById('modalTitle');
+                    const content = document.getElementById('modalContent');
+
+                    modalTitle.textContent = 'DumpFiles - Success';
+
+                    let filesHtml = '';
+                    if (data.files && data.files.length > 0) {
+                        filesHtml = '<p style="margin-bottom: 0.5rem;"><strong>Files created:</strong></p><ul style="margin-left: 1.5rem; margin-bottom: 1rem;">';
+                        data.files.forEach(file => {
+                            filesHtml += '<li style="font-family: monospace; font-size: 0.875rem;">' + file + '</li>';
+                        });
+                        filesHtml += '</ul>';
+                    }
+
+                    content.innerHTML = '<div style="padding: 1rem;">' +
+                        '<h3 style="color: var(--success); margin-bottom: 1rem;">✓ Dump completed successfully!</h3>' +
+                        '<p style="margin-bottom: 0.5rem;"><strong>Offset:</strong> ' + offset + '</p>' +
+                        filesHtml +
+                        '<p style="margin-bottom: 0.5rem;"><strong>Directory:</strong></p>' +
+                        '<pre class="output" style="background: var(--bg-primary); padding: 1rem; border-radius: 0.375rem; margin-bottom: 1rem;">' + data.directory + '</pre>' +
+                        '<p style="color: var(--text-muted); font-size: 0.875rem;">Duration: ' + data.duration.toFixed(1) + 's</p>' +
+                        '</div>';
+                } else {
+                    showError('DumpFiles', data.error || 'Unknown error occurred during dump');
+                }
+            } catch (error) {
+                showError('DumpFiles', error.message);
+            }
+        }
+
         // Show loading modal
         function showLoading(plugin, message) {
             const modal = document.getElementById('resultsModal');
@@ -1480,13 +1566,20 @@
             const modalTitle = document.getElementById('modalTitle');
             const content = document.getElementById('modalContent');
 
-            modalTitle.textContent = 'Start API Server';
+            modalTitle.textContent = 'API Server Instructions';
             content.innerHTML = `
                 <div style="padding: 1rem;">
-                    <h3 style="margin-bottom: 1rem;">To enable on-demand analysis features:</h3>
-                    <p style="margin-bottom: 1rem;">Open a new terminal and run:</p>
-                    <pre class="output" style="background: var(--bg-primary); padding: 1rem; border-radius: 0.375rem; margin-bottom: 1rem;">volautomatiq-server -f "{{ image_path }}" --profile "{{ profile }}"</pre>
-                    <p style="color: var(--text-muted); font-size: 0.875rem;">The server will start on http://127.0.0.1:5555 and the connection indicator will turn green.</p>
+                    <h3 style="margin-bottom: 1rem; color: var(--success);">🟢 Start Server</h3>
+                    <p style="margin-bottom: 0.5rem;">Open a new terminal and run:</p>
+                    <pre class="output" style="background: var(--bg-primary); padding: 1rem; border-radius: 0.375rem; margin-bottom: 1.5rem; user-select: all;">volautomatiq-server -f "{{ image_path }}" --profile "{{ profile }}"</pre>
+                    <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 2rem;">The server will start on http://127.0.0.1:5555 and the connection indicator will turn green.</p>
+
+                    <hr style="border: none; border-top: 1px solid var(--border); margin: 2rem 0;">
+
+                    <h3 style="margin-bottom: 1rem; color: var(--error);">🔴 Stop Server</h3>
+                    <p style="margin-bottom: 0.5rem;">To stop the API server, run:</p>
+                    <pre class="output" style="background: var(--bg-primary); padding: 1rem; border-radius: 0.375rem; margin-bottom: 0.5rem; user-select: all;">pkill -f volautomatiq-server</pre>
+                    <p style="color: var(--text-muted); font-size: 0.875rem;">This will terminate all running volautomatiq-server processes.</p>
                 </div>
             `;
 
@@ -1528,6 +1621,116 @@
         function markAsFindingSide() {
             if (!currentProcessForFinding) return;
             showFindingDialog(currentProcessForFinding);
+        }
+
+        // Dump process (from search panel)
+        function dumpProcess() {
+            if (!currentProcessForFinding) return;
+            showDumpDialog(currentProcessForFinding);
+        }
+
+        // Dump process (from side panel)
+        function dumpProcessSide() {
+            if (!currentProcessForFinding) return;
+            showDumpDialog(currentProcessForFinding);
+        }
+
+        // Show dump dialog
+        function showDumpDialog(proc) {
+            const offset = proc.details['Offset (Physical)'];
+
+            if (!offset || offset === 'N/A') {
+                alert('Physical offset not available for this process. Cannot dump.');
+                return;
+            }
+
+            if (!serverConnected) {
+                alert('API server not connected. Please start the server first.');
+                return;
+            }
+
+            const modalTitle = document.getElementById('modalTitle');
+            const content = document.getElementById('modalContent');
+
+            modalTitle.textContent = 'Dump Files from Memory';
+            content.innerHTML = `
+                <div style="padding: 1rem;">
+                    <h3 style="margin-bottom: 1rem;">Process: ${proc.name} (PID: ${proc.pid})</h3>
+                    <p style="margin-bottom: 1rem; color: var(--text-muted);">Physical Offset: ${offset}</p>
+
+                    <div style="background: var(--bg-tertiary); padding: 1rem; border-radius: 0.375rem; margin-bottom: 1rem;">
+                        <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.5rem;">Command that will be executed:</p>
+                        <code style="font-size: 0.75rem; color: var(--accent);">volatility dumpfiles -Q ${offset} -D [output_dir]</code>
+                    </div>
+
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Output Directory:</label>
+                    <input type="text" id="dumpOutputDir" value="./dumps" placeholder="e.g., ./dumps" style="width: 100%; padding: 0.5rem; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 0.375rem; color: var(--text-primary); margin-bottom: 1rem;">
+
+                    <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1rem;">Files will be automatically named by Volatility (e.g., file.None.0x12345678.dat)</p>
+
+                    <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+                        <button onclick="executeDump('${offset}')" class="on-demand-btn">Start Dump</button>
+                        <button onclick="closeModal()" style="background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border); padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer;">Cancel</button>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('resultsModal').classList.add('active');
+        }
+
+        // Execute process dump
+        async function executeDump(offset) {
+            const outputDir = document.getElementById('dumpOutputDir').value;
+
+            if (!outputDir) {
+                alert('Please provide an output directory');
+                return;
+            }
+
+            showLoading('Dump Files', 'Dumping files from memory... This may take a few minutes.');
+
+            try {
+                const response = await fetch(`${API_BASE}/api/procdump`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        offset: offset,
+                        output_dir: outputDir
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const modalTitle = document.getElementById('modalTitle');
+                    const content = document.getElementById('modalContent');
+
+                    modalTitle.textContent = 'Dump Files - Success';
+
+                    let filesHtml = '';
+                    if (data.files && data.files.length > 0) {
+                        filesHtml = '<p style="margin-bottom: 0.5rem;"><strong>Files created:</strong></p><ul style="margin-left: 1.5rem; margin-bottom: 1rem;">';
+                        data.files.forEach(file => {
+                            filesHtml += '<li style="font-family: monospace; font-size: 0.875rem;">' + file + '</li>';
+                        });
+                        filesHtml += '</ul>';
+                    }
+
+                    content.innerHTML = '<div style="padding: 1rem;">' +
+                        '<h3 style="color: var(--success); margin-bottom: 1rem;">✓ Dump completed successfully!</h3>' +
+                        filesHtml +
+                        '<p style="margin-bottom: 0.5rem;"><strong>Directory:</strong></p>' +
+                        '<pre class="output" style="background: var(--bg-primary); padding: 1rem; border-radius: 0.375rem; margin-bottom: 1rem;">' + data.directory + '</pre>' +
+                        '<p style="color: var(--text-muted); font-size: 0.875rem;">Duration: ' + data.duration.toFixed(1) + 's</p>' +
+                        '</div>';
+                } else {
+                    showError('Dump Files', data.error || 'Unknown error occurred during dump');
+                }
+            } catch (error) {
+                showError('Dump Files', error.message);
+            }
         }
 
         // Show finding dialog
@@ -1757,6 +1960,11 @@
 
             // Save state to localStorage
             localStorage.setItem('headerCollapsed', metadata.classList.contains('collapsed'));
+
+            // Recalculate side panel position after animation completes
+            setTimeout(() => {
+                positionSidePanel();
+            }, 350); // Wait for CSS transition (300ms + buffer)
         }
 
         // Restore header state on load
@@ -1766,6 +1974,11 @@
             document.getElementById('searchContainer').classList.add('collapsed');
             document.getElementById('onDemandContainer').classList.add('collapsed');
             document.getElementById('headerToggle').textContent = '▶';
+
+            // Recalculate side panel position since header is collapsed
+            setTimeout(() => {
+                positionSidePanel();
+            }, 100);
         }
     </script>
 </body>

@@ -23,6 +23,7 @@ class VolatilityAPIServer:
         # Register routes
         self.app.add_url_rule('/api/handles', 'handles', self.run_handles, methods=['POST'])
         self.app.add_url_rule('/api/filescan', 'filescan', self.run_filescan, methods=['POST'])
+        self.app.add_url_rule('/api/procdump', 'procdump', self.run_procdump, methods=['POST'])
         self.app.add_url_rule('/api/status', 'status', self.get_status, methods=['GET'])
 
     def run_handles(self):
@@ -74,6 +75,102 @@ class VolatilityAPIServer:
                 'error': result.error,
                 'duration': result.duration
             })
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+    def run_procdump(self):
+        """Execute dumpfiles plugin to dump file from memory.
+
+        Expects JSON: {"offset": "0x12345678", "output_dir": "./dumps"}
+        """
+        data = request.get_json()
+        offset = data.get('offset')
+        output_dir = data.get('output_dir', './dumps')
+
+        if not offset:
+            return jsonify({'error': 'Physical offset is required'}), 400
+
+        try:
+            import subprocess
+            import os
+            from datetime import datetime
+
+            # Create output directory if it doesn't exist
+            os.makedirs(output_dir, exist_ok=True)
+
+            # Build dumpfiles command
+            cmd = [
+                self.scanner.vol_path,
+                "-f", str(self.scanner.image_path),
+                "--profile", self.scanner.profile,
+                "dumpfiles",
+                "-Q", offset,
+                "-D", output_dir
+            ]
+
+            print(f"  Running dumpfiles with offset {offset}...")
+            start_time = datetime.now()
+
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=300,
+            )
+
+            duration = (datetime.now() - start_time).total_seconds()
+
+            if result.returncode == 0:
+                # List files in output directory to show what was dumped
+                try:
+                    dumped_files = sorted(os.listdir(output_dir), key=lambda f: os.path.getmtime(os.path.join(output_dir, f)), reverse=True)
+                    # Get files created in the last few seconds
+                    recent_files = []
+                    cutoff_time = datetime.now().timestamp() - 10
+                    for f in dumped_files:
+                        file_path = os.path.join(output_dir, f)
+                        if os.path.getmtime(file_path) > cutoff_time:
+                            recent_files.append(f)
+
+                    if recent_files:
+                        file_list = '\n'.join(recent_files)
+                        return jsonify({
+                            'success': True,
+                            'output': result.stdout,
+                            'files': recent_files,
+                            'directory': os.path.abspath(output_dir),
+                            'message': f'Files dumped successfully:\n{file_list}',
+                            'duration': duration
+                        })
+                    else:
+                        return jsonify({
+                            'success': True,
+                            'output': result.stdout,
+                            'directory': os.path.abspath(output_dir),
+                            'message': 'Dump completed. Check the output directory.',
+                            'duration': duration
+                        })
+                except Exception as e:
+                    return jsonify({
+                        'success': True,
+                        'output': result.stdout,
+                        'directory': os.path.abspath(output_dir),
+                        'message': 'Dump completed',
+                        'duration': duration
+                    })
+            else:
+                return jsonify({
+                    'success': False,
+                    'output': result.stdout,
+                    'error': result.stderr or 'Dumpfiles command failed',
+                    'duration': duration
+                })
+
+        except subprocess.TimeoutExpired:
+            return jsonify({
+                'success': False,
+                'error': 'Dumpfiles timed out after 5 minutes'
+            }), 500
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
