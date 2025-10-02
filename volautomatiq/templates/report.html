@@ -42,6 +42,7 @@
             border-bottom: 2px solid var(--accent);
             padding: 1.5rem 2rem;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            position: relative;
         }
 
         .header h1 {
@@ -50,11 +51,42 @@
             color: var(--accent);
         }
 
+        .header-toggle {
+            position: absolute;
+            top: 50%;
+            right: 1rem;
+            transform: translateY(-50%);
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 0.5rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1.25rem;
+            line-height: 1;
+            z-index: 10;
+        }
+
+        .header-toggle:hover {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
         .metadata {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 1rem;
             margin-top: 1rem;
+            transition: all 0.3s ease;
+            max-height: 200px;
+            overflow: hidden;
+        }
+
+        .metadata.collapsed {
+            max-height: 0;
+            margin-top: 0;
+            opacity: 0;
         }
 
         .metadata-item {
@@ -795,7 +827,8 @@
 <body>
     <div class="header">
         <h1>VolAutomatiq Report</h1>
-        <div class="metadata">
+        <button class="header-toggle" id="headerToggle" onclick="toggleMetadata()" title="Show/Hide Metadata">▼</button>
+        <div class="metadata" id="metadata">
             <div class="metadata-item">
                 <label>Image</label>
                 <value>{{ image_name }}</value>
@@ -1010,6 +1043,11 @@
                 // Update active content
                 document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
                 document.getElementById('content-' + tabName).classList.add('active');
+
+                // Close side panel when leaving pstree tab
+                if (tabName !== 'pstree') {
+                    document.getElementById('sidePanel').classList.remove('active');
+                }
             });
         });
 
@@ -1516,7 +1554,9 @@
                 process: currentProcessForFinding,
                 classification: classification,
                 conclusion: conclusion,
-                timestamp: new Date().toISOString()
+                timestamp: new Date().toISOString(),
+                hash: '',
+                virusTotalRating: ''
             };
 
             findings.push(finding);
@@ -1548,7 +1588,11 @@
                     <div class="finding-card ${finding.classification}">
                         <div class="finding-header">
                             <div class="finding-title">Finding #${findings.length - index}</div>
-                            <div class="finding-classification ${finding.classification}">${finding.classification}</div>
+                            <select onchange="updateFindingClassification(${finding.id}, this.value)" style="padding: 0.375rem 0.75rem; border-radius: 0.25rem; font-size: 0.875rem; font-weight: 600; text-transform: uppercase; border: none; cursor: pointer; background: ${finding.classification === 'legit' ? 'var(--success)' : finding.classification === 'suspicious' ? 'var(--warning)' : 'var(--error)'}; color: ${finding.classification === 'suspicious' ? 'black' : 'white'};">
+                                <option value="legit" ${finding.classification === 'legit' ? 'selected' : ''}>LEGIT</option>
+                                <option value="suspicious" ${finding.classification === 'suspicious' ? 'selected' : ''}>SUSPICIOUS</option>
+                                <option value="malicious" ${finding.classification === 'malicious' ? 'selected' : ''}>MALICIOUS</option>
+                            </select>
                         </div>
 
                         <table class="finding-table">
@@ -1562,8 +1606,8 @@
                             <tr><td>Virtual Offset</td><td>${proc.details['Offset (Virtual)'] || 'N/A'}</td></tr>
                             <tr><td>User</td><td>${proc.details['Session'] || 'N/A'}</td></tr>
                             <tr><td>Process Dump:</td><td>N/A</td></tr>
-                            <tr><td>Hash (after dump)</td><td>N/A</td></tr>
-                            <tr><td>Rating Virustotal</td><td>N/A</td></tr>
+                            <tr><td>Hash (after dump)</td><td><input type="text" value="${finding.hash || ''}" placeholder="Enter hash..." onchange="updateFindingHash(${finding.id}, this.value)" style="width: 100%; padding: 0.25rem 0.5rem; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 0.25rem; color: var(--text-primary);"></td></tr>
+                            <tr><td>Rating Virustotal</td><td><input type="text" value="${finding.virusTotalRating || ''}" placeholder="e.g., 45/70" onchange="updateFindingVT(${finding.id}, this.value)" style="width: 100%; padding: 0.25rem 0.5rem; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 0.25rem; color: var(--text-primary);"></td></tr>
                         </table>
 
                         <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Conclusion of Finding #${findings.length - index}:</label>
@@ -1582,6 +1626,34 @@
             const finding = findings.find(f => f.id === id);
             if (finding) {
                 finding.conclusion = newConclusion;
+                saveFindings();
+            }
+        }
+
+        // Update finding classification
+        function updateFindingClassification(id, newClassification) {
+            const finding = findings.find(f => f.id === id);
+            if (finding) {
+                finding.classification = newClassification;
+                saveFindings();
+                renderFindings();
+            }
+        }
+
+        // Update finding hash
+        function updateFindingHash(id, newHash) {
+            const finding = findings.find(f => f.id === id);
+            if (finding) {
+                finding.hash = newHash;
+                saveFindings();
+            }
+        }
+
+        // Update finding VirusTotal rating
+        function updateFindingVT(id, newRating) {
+            const finding = findings.find(f => f.id === id);
+            if (finding) {
+                finding.virusTotalRating = newRating;
                 saveFindings();
             }
         }
@@ -1623,6 +1695,8 @@
                 content += `Physical Offset: ${proc.details['Offset (Physical)'] || 'N/A'}\n`;
                 content += `Virtual Offset: ${proc.details['Offset (Virtual)'] || 'N/A'}\n`;
                 content += `User: ${proc.details['Session'] || 'N/A'}\n`;
+                content += `Hash (after dump): ${finding.hash || 'N/A'}\n`;
+                content += `Rating Virustotal: ${finding.virusTotalRating || 'N/A'}\n`;
                 content += `\n`;
                 content += `Conclusion:\n`;
                 content += `${finding.conclusion || 'No conclusion provided'}\n`;
@@ -1643,6 +1717,31 @@
 
         // Load findings on page load
         loadFindings();
+
+        // Toggle metadata visibility
+        function toggleMetadata() {
+            const metadata = document.getElementById('metadata');
+            const toggleBtn = document.getElementById('headerToggle');
+
+            metadata.classList.toggle('collapsed');
+
+            // Update button icon
+            if (metadata.classList.contains('collapsed')) {
+                toggleBtn.textContent = '▶';
+            } else {
+                toggleBtn.textContent = '▼';
+            }
+
+            // Save state to localStorage
+            localStorage.setItem('metadataCollapsed', metadata.classList.contains('collapsed'));
+        }
+
+        // Restore metadata state on load
+        const metadataCollapsed = localStorage.getItem('metadataCollapsed') === 'true';
+        if (metadataCollapsed) {
+            document.getElementById('metadata').classList.add('collapsed');
+            document.getElementById('headerToggle').textContent = '▶';
+        }
     </script>
 </body>
 </html>

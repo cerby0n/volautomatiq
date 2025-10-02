@@ -113,6 +113,36 @@ For more information, visit: https://github.com/yourusername/volautomatiq
             output_path=args.output_path,
         )
 
+        # Auto-start API server in background
+        print("\n[*] Starting API server in background...")
+        import subprocess
+        import os
+
+        server_cmd = [
+            "volautomatiq-server",
+            "-f", args.image_path,
+            "--profile", scanner.profile,
+        ]
+
+        if args.vol_path != "vol.py":
+            server_cmd.extend(["--vol-path", args.vol_path])
+
+        try:
+            # Start server in background (detached)
+            subprocess.Popen(
+                server_cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True
+            )
+            print("[+] API server started on http://127.0.0.1:5555")
+            print("[*] The server will keep running in the background.")
+            print("[*] To stop it later, use: pkill -f volautomatiq-server")
+        except Exception as e:
+            print(f"[!] Could not start API server: {e}")
+            print("[*] You can start it manually with:")
+            print(f"    volautomatiq-server -f \"{args.image_path}\" --profile \"{scanner.profile}\"")
+
         # Exit with error code if any scans failed
         if any(not r.success for r in results):
             sys.exit(1)
