@@ -1637,13 +1637,6 @@
 
         // Show dump dialog
         function showDumpDialog(proc) {
-            const offset = proc.details['Offset (Physical)'];
-
-            if (!offset || offset === 'N/A') {
-                alert('Physical offset not available for this process. Cannot dump.');
-                return;
-            }
-
             if (!serverConnected) {
                 alert('API server not connected. Please start the server first.');
                 return;
@@ -1652,24 +1645,23 @@
             const modalTitle = document.getElementById('modalTitle');
             const content = document.getElementById('modalContent');
 
-            modalTitle.textContent = 'Dump Files from Memory';
+            modalTitle.textContent = 'Dump Process Memory';
             content.innerHTML = `
                 <div style="padding: 1rem;">
                     <h3 style="margin-bottom: 1rem;">Process: ${proc.name} (PID: ${proc.pid})</h3>
-                    <p style="margin-bottom: 1rem; color: var(--text-muted);">Physical Offset: ${offset}</p>
 
                     <div style="background: var(--bg-tertiary); padding: 1rem; border-radius: 0.375rem; margin-bottom: 1rem;">
                         <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.5rem;">Command that will be executed:</p>
-                        <code style="font-size: 0.75rem; color: var(--accent);">volatility dumpfiles -Q ${offset} -D [output_dir]</code>
+                        <code style="font-size: 0.75rem; color: var(--accent);">volatility procdump -p ${proc.pid} --dump-dir [output_dir]</code>
                     </div>
 
                     <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Output Directory:</label>
                     <input type="text" id="dumpOutputDir" value="./dumps" placeholder="e.g., ./dumps" style="width: 100%; padding: 0.5rem; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 0.375rem; color: var(--text-primary); margin-bottom: 1rem;">
 
-                    <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1rem;">Files will be automatically named by Volatility (e.g., file.None.0x12345678.dat)</p>
+                    <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1rem;">The process executable will be dumped (e.g., executable.${proc.pid}.exe)</p>
 
                     <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
-                        <button onclick="executeDump('${offset}')" class="on-demand-btn">Start Dump</button>
+                        <button onclick="executeDump(${proc.pid})" class="on-demand-btn">Start Dump</button>
                         <button onclick="closeModal()" style="background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border); padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer;">Cancel</button>
                     </div>
                 </div>
@@ -1679,7 +1671,7 @@
         }
 
         // Execute process dump
-        async function executeDump(offset) {
+        async function executeDump(pid) {
             const outputDir = document.getElementById('dumpOutputDir').value;
 
             if (!outputDir) {
@@ -1687,16 +1679,16 @@
                 return;
             }
 
-            showLoading('Dump Files', 'Dumping files from memory... This may take a few minutes.');
+            showLoading('Process Dump', 'Dumping process memory... This may take a few minutes.');
 
             try {
-                const response = await fetch(`${API_BASE}/api/procdump`, {
+                const response = await fetch(`${API_BASE}/api/procdump-pid`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        offset: offset,
+                        pid: pid,
                         output_dir: outputDir
                     })
                 });
@@ -1707,7 +1699,7 @@
                     const modalTitle = document.getElementById('modalTitle');
                     const content = document.getElementById('modalContent');
 
-                    modalTitle.textContent = 'Dump Files - Success';
+                    modalTitle.textContent = 'Process Dump - Success';
 
                     let filesHtml = '';
                     if (data.files && data.files.length > 0) {
@@ -1719,17 +1711,18 @@
                     }
 
                     content.innerHTML = '<div style="padding: 1rem;">' +
-                        '<h3 style="color: var(--success); margin-bottom: 1rem;">✓ Dump completed successfully!</h3>' +
+                        '<h3 style="color: var(--success); margin-bottom: 1rem;">✓ Process dumped successfully!</h3>' +
+                        '<p style="margin-bottom: 0.5rem;"><strong>PID:</strong> ' + pid + '</p>' +
                         filesHtml +
                         '<p style="margin-bottom: 0.5rem;"><strong>Directory:</strong></p>' +
                         '<pre class="output" style="background: var(--bg-primary); padding: 1rem; border-radius: 0.375rem; margin-bottom: 1rem;">' + data.directory + '</pre>' +
                         '<p style="color: var(--text-muted); font-size: 0.875rem;">Duration: ' + data.duration.toFixed(1) + 's</p>' +
                         '</div>';
                 } else {
-                    showError('Dump Files', data.error || 'Unknown error occurred during dump');
+                    showError('Process Dump', data.error || 'Unknown error occurred during dump');
                 }
             } catch (error) {
-                showError('Dump Files', error.message);
+                showError('Process Dump', error.message);
             }
         }
 
