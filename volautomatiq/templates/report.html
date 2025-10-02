@@ -112,6 +112,15 @@
             background: var(--bg-secondary);
             padding: 1rem 2rem;
             border-bottom: 1px solid var(--border);
+            transition: all 0.3s ease;
+            max-height: 200px;
+            overflow: hidden;
+        }
+
+        .search-container.collapsed {
+            max-height: 0;
+            padding: 0 2rem;
+            opacity: 0;
         }
 
         .search-wrapper {
@@ -188,6 +197,15 @@
             background: var(--bg-secondary);
             padding: 1rem 2rem;
             border-bottom: 1px solid var(--border);
+            transition: all 0.3s ease;
+            max-height: 200px;
+            overflow: hidden;
+        }
+
+        .on-demand-container.collapsed {
+            max-height: 0;
+            padding: 0 2rem;
+            opacity: 0;
         }
 
         .on-demand-wrapper {
@@ -848,7 +866,7 @@
         </div>
     </div>
 
-    <div class="search-container">
+    <div class="search-container" id="searchContainer">
         <div class="search-wrapper">
             <input
                 type="text"
@@ -860,7 +878,7 @@
         </div>
     </div>
 
-    <div class="on-demand-container">
+    <div class="on-demand-container" id="onDemandContainer">
         <div class="on-demand-wrapper">
             <div class="on-demand-group">
                 <label class="on-demand-label">Handles (by PID)</label>
@@ -1718,12 +1736,17 @@
         // Load findings on page load
         loadFindings();
 
-        // Toggle metadata visibility
+        // Toggle metadata and controls visibility
         function toggleMetadata() {
             const metadata = document.getElementById('metadata');
+            const searchContainer = document.getElementById('searchContainer');
+            const onDemandContainer = document.getElementById('onDemandContainer');
             const toggleBtn = document.getElementById('headerToggle');
 
+            // Toggle all sections
             metadata.classList.toggle('collapsed');
+            searchContainer.classList.toggle('collapsed');
+            onDemandContainer.classList.toggle('collapsed');
 
             // Update button icon
             if (metadata.classList.contains('collapsed')) {
@@ -1733,13 +1756,15 @@
             }
 
             // Save state to localStorage
-            localStorage.setItem('metadataCollapsed', metadata.classList.contains('collapsed'));
+            localStorage.setItem('headerCollapsed', metadata.classList.contains('collapsed'));
         }
 
-        // Restore metadata state on load
-        const metadataCollapsed = localStorage.getItem('metadataCollapsed') === 'true';
-        if (metadataCollapsed) {
+        // Restore header state on load
+        const headerCollapsed = localStorage.getItem('headerCollapsed') === 'true';
+        if (headerCollapsed) {
             document.getElementById('metadata').classList.add('collapsed');
+            document.getElementById('searchContainer').classList.add('collapsed');
+            document.getElementById('onDemandContainer').classList.add('collapsed');
             document.getElementById('headerToggle').textContent = '▶';
         }
     </script>
