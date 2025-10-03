@@ -47,9 +47,9 @@ RUN pip3 install --no-cache-dir \
 # Install volautomatiq
 RUN pip3 install -e .
 
-# Create directories for dumps and reports with proper permissions
-RUN mkdir -p /data/dumps /data/reports && \
-    chmod 777 /data/reports
+# Create directories for dumps and extract with proper permissions
+RUN mkdir -p /data/dumps /data/extract && \
+    chmod 777 /data/extract
 
 # Expose API port
 EXPOSE 5555
