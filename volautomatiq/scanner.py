@@ -51,13 +51,14 @@ class VolatilityScanner:
         if not self.image_path.exists():
             raise FileNotFoundError(f"Memory image not found: {image_path}")
 
-    def run_on_demand(self, plugin: str, pid: Optional[int] = None, grep: Optional[str] = None) -> ScanResult:
+    def run_on_demand(self, plugin: str, pid: Optional[int] = None, grep: Optional[str] = None, dump_dir: Optional[str] = None) -> ScanResult:
         """Execute a plugin on-demand with optional filters.
 
         Args:
             plugin: Plugin name (e.g., 'handles', 'filescan')
-            pid: Process ID filter (for handles)
+            pid: Process ID filter (for handles, procdump)
             grep: String to grep for (for filescan)
+            dump_dir: Directory for dumping files/processes
 
         Returns:
             ScanResult with output and metadata
@@ -72,15 +73,22 @@ class VolatilityScanner:
         if pid is not None:
             cmd.extend(["-p", str(pid)])
 
-        print(f"  Running {plugin} on-demand...", flush=True)
+        # Add dump directory for dump plugins
+        if dump_dir and plugin in ["procdump", "dumpfiles", "dlldump", "moddump"]:
+            cmd.extend(["--dump-dir", dump_dir])
+
+        print(f"  Running {plugin} on-demand...", file=sys.stderr, flush=True)
         start_time = datetime.now()
+
+        # Longer timeout for slow plugins
+        timeout = 600 if plugin in ["filescan", "dumpfiles", "malfind"] else 300
 
         try:
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=300,
+                timeout=timeout,
             )
 
             duration = (datetime.now() - start_time).total_seconds()
@@ -143,7 +151,7 @@ class VolatilityScanner:
 
         cmd.append(plugin)
 
-        print(f"  Running {plugin}...", flush=True)
+        print(f"  Running {plugin}...", file=sys.stderr, flush=True)
         start_time = datetime.now()
 
         try:
@@ -214,7 +222,7 @@ class VolatilityScanner:
                     profiles = parts[1].strip().split(",")
                     if profiles:
                         profile = profiles[0].strip()
-                        print(f"  Detected profile: {profile}")
+                        print(f"  Detected profile: {profile}", file=sys.stderr)
                         return profile
 
         return None
@@ -225,38 +233,38 @@ class VolatilityScanner:
         Returns:
             List of scan results for each plugin
         """
-        print(f"\n[*] Starting VolAutomatiq scan")
-        print(f"[*] Image: {self.image_path}")
-        print(f"[*] Profile: {self.profile or 'Auto-detect'}\n")
+        print(f"\n[*] Starting VolAutomatiq scan", file=sys.stderr)
+        print(f"[*] Image: {self.image_path}", file=sys.stderr)
+        print(f"[*] Profile: {self.profile or 'Auto-detect'}\n", file=sys.stderr)
 
         # Detect profile if not provided
         if not self.profile:
-            print("[*] Detecting profile...")
+            print("[*] Detecting profile...", file=sys.stderr)
             self.profile = self._detect_profile()
 
             if not self.profile:
-                print("[!] Failed to detect profile. Continuing without profile (some plugins may fail).")
+                print("[!] Failed to detect profile. Continuing without profile (some plugins may fail).", file=sys.stderr)
 
             # Skip imageinfo in main loop since we already ran it
             plugins_to_run = [p for p in self.PLUGINS if p != "imageinfo"]
         else:
             # Profile provided, skip imageinfo entirely
             plugins_to_run = [p for p in self.PLUGINS if p != "imageinfo"]
-            print(f"[*] Using provided profile: {self.profile}")
+            print(f"[*] Using provided profile: {self.profile}", file=sys.stderr)
 
         # Run remaining plugins
-        print(f"\n[*] Running {len(plugins_to_run)} plugins...\n")
+        print(f"\n[*] Running {len(plugins_to_run)} plugins...\n", file=sys.stderr)
 
         for plugin in plugins_to_run:
             result = self._run_plugin(plugin, self.profile)
             self.results.append(result)
 
             if result.success:
-                print(f"  ✓ {plugin} completed in {result.duration:.1f}s")
+                print(f"  ✓ {plugin} completed in {result.duration:.1f}s", file=sys.stderr)
             else:
-                print(f"  ✗ {plugin} failed: {result.error}")
+                print(f"  ✗ {plugin} failed: {result.error}", file=sys.stderr)
 
         successful = sum(1 for r in self.results if r.success)
-        print(f"\n[*] Scan complete: {successful}/{len(self.results)} plugins successful")
+        print(f"\n[*] Scan complete: {successful}/{len(self.results)} plugins successful", file=sys.stderr)
 
         return self.results

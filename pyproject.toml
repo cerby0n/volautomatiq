@@ -3,7 +3,7 @@ name = "volautomatiq"
 version = "0.1.0"
 description = "Automated Volatility memory forensics scanner with HTML reporting"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.11"
 dependencies = [
     "jinja2>=3.1.2",
     "flask>=3.0.0",
