@@ -36,10 +36,11 @@ class HTMLReporter:
             output_path: Path where HTML report will be saved
         """
         # Parse process data from all plugins
-        print("[*] Parsing process data for search functionality...")
+        import sys
+        print("[*] Parsing process data for search functionality...", file=sys.stderr)
         parser = VolatilityParser()
         process_data = parser.parse_all(results)
-        print(f"[*] Extracted data for {len(process_data)} processes")
+        print(f"[*] Extracted data for {len(process_data)} processes", file=sys.stderr)
 
         template = self.env.get_template("report.html")
 
@@ -66,4 +67,4 @@ class HTMLReporter:
         output_file = Path(output_path)
         output_file.write_text(html_content, encoding="utf-8")
 
-        print(f"\n[+] Report saved to: {output_file.absolute()}")
+        print(f"\n[+] Report saved to: {output_file.absolute()}", file=sys.stderr)
