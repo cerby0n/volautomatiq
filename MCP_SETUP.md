@@ -46,7 +46,9 @@ Add to your Claude Desktop MCP configuration (`~/Library/Application Support/Cla
         "-i",
         "--rm",
         "-v",
-        "/path/to/your/memory/dumps:/data",
+        "C:\\Users\\{username}\\Desktop\\dumps:/data/dumps:ro",
+        "-v",
+        "C:\\Users\\{username}\\Desktop\\extract:/data/extract/dumps",
         "volautomatiq-mcp"
       ]
     }
@@ -54,7 +56,9 @@ Add to your Claude Desktop MCP configuration (`~/Library/Application Support/Cla
 }
 ```
 
-Replace `/path/to/your/memory/dumps` with the actual path to your memory dump files.
+Replace `C:\\Users\\{username}\\Desktop\\dumps` with the actual path to your memory dump files.
+During your prompting, do not forget to use mounted volume path such as 
+"Can you dump process files in the folder /data/reports ? "
 
 3. **Restart Claude Desktop**
 
