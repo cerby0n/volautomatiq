@@ -58,41 +58,6 @@ Replace `/path/to/your/memory/dumps` with the actual path to your memory dump fi
 
 3. **Restart Claude Desktop**
 
-### Option 2: Local Installation
-
-1. **Install dependencies**:
-```bash
-cd /home/kali/tools/dev/volautomatiq
-uv pip install -e .
-```
-
-2. **Install Volatility 2.6.1**:
-```bash
-git clone https://github.com/volatilityfoundation/volatility.git
-cd volatility
-git checkout 2.6.1
-python setup.py install
-```
-
-3. **Configure Claude Desktop**:
-
-```json
-{
-  "mcpServers": {
-    "volautomatiq": {
-      "command": "python",
-      "args": [
-        "-m",
-        "volautomatiq.mcp_server"
-      ],
-      "cwd": "/home/kali/tools/dev/volautomatiq"
-    }
-  }
-}
-```
-
-4. **Restart Claude Desktop**
-
 ## Usage Examples
 
 Once configured, you can ask Claude to perform forensics analysis:
