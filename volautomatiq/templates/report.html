@@ -1025,22 +1025,22 @@
 
         // Field explanations
         const fieldTooltips = {
-            "Offset (Virtual)": "Virtual memory offset where the process structure is located",
-            "Offset (Physical)": "Physical memory offset of the process structure",
-            "PPID": "Parent Process ID - the PID of the process that created this process",
-            "PID": "Process ID - unique identifier for this process",
-            "Threads": "Number of threads running in this process",
-            "Handles": "Number of object handles opened by this process",
-            "Session": "Session ID - indicates which user session owns this process",
-            "Wow64": "Windows-on-Windows 64-bit - indicates if this is a 32-bit process on 64-bit Windows",
-            "Start Time": "Time when the process was created",
-            "PDB": "Page Directory Base - physical address of the process's page directory",
-            "Command Line": "Full command line used to launch this process",
-            "Network Connections": "Active network connections associated with this process",
-            "Tree Level": "Hierarchical level in the process tree (0 = root)",
-            "SIDs": "Security Identifiers (SIDs) associated with this process",
-            "DLL Count": "Number of DLLs (Dynamic Link Libraries) loaded by this process",
-            "DLLs": "List of DLLs loaded by this process"
+            "Offset (Virtual)": "Virtual memory address of the process structure (EPROCESS). Used to locate the process in memory analysis.",
+            "Offset (Physical)": "Physical memory address of the process structure in the RAM dump.",
+            "PID": "Process ID – a unique number assigned to each running process.",
+            "PPID": "Parent Process ID – identifies the process that spawned this one. Unexpected parent-child relationships can indicate malicious activity.",
+            "Threads": "Number of active threads in the process. Unusually high or low counts may suggest code injection or malfunction.",
+            "Handles": "Number of handles (open objects like files, registry keys, etc.). A very high count may indicate enumeration or abuse.",
+            "Session": "Windows Session ID this process belongs to. Session 0 = system services, higher = user sessions. GUI apps in Session 0 are suspicious.",
+            "Wow64": "Indicates if a 32-bit process is running on 64-bit Windows (Wow64). Critical system processes should not run under Wow64.",
+            "Start Time": "Timestamp when the process was created. Late-starting system processes or unusual timing can suggest injection or persistence.",
+            "PDB": "Page Directory Base – physical address of the page directory used for memory translation. Useful for low-level memory analysis.",
+            "Command Line": "Full command line used to launch the process. Can reveal hidden arguments or execution paths.",
+            "Network Connections": "List of network sockets opened by the process. Unexpected external connections may indicate C2 or exfiltration.",
+            "Tree Level": "Depth of the process in the parent-child hierarchy. Helps visualize process ancestry and spot anomalies.",
+            "SIDs": "Security Identifiers (SIDs) associated with the process. Indicates which user or service context it runs under.",
+            "DLL Count": "Total number of DLLs loaded in the process. A high or unusual count might indicate injection or malicious behavior.",
+            "DLLs": "Names/paths of DLLs loaded by the process. Unknown or unsigned DLLs can be signs of compromise."
         };
 
         // Field ordering - important fields first, then full-width at the end
