@@ -123,6 +123,7 @@
             max-height: 0;
             padding: 0 2rem;
             opacity: 0;
+            pointer-events: none;
         }
 
         .search-wrapper {
@@ -2256,13 +2257,31 @@
             }
 
             // Get actual process values
-            const ppidName = processData.find(p => p.pid === proc.details.PPID)?.name || 'Unknown';
+            const ppid = proc.details.PPID ? String(proc.details.PPID) : '0';
+            const ppidName = processData.find(p => String(p.pid) === ppid)?.name || 'Unknown';
             const cmdLine = proc.details['Command Line'] || 'N/A';
+
+            // Extract path from command line
+            let actualPath = 'N/A';
+            if (cmdLine && cmdLine !== 'N/A') {
+                // Try to extract path from command line
+                const pathMatch = cmdLine.match(/^"?([^"]+\.exe)/i) || cmdLine.match(/^([^\s]+\.exe)/i);
+                if (pathMatch) {
+                    actualPath = pathMatch[1];
+                } else {
+                    actualPath = cmdLine.split(' ')[0];
+                }
+            }
+
             const hasNetworkConnections = proc.details['Network Connections'] && proc.details['Network Connections'] !== 'None';
             const networkConnections = proc.details['Network Connections'] || 'None';
             const startTime = proc.details['Start Time'] || 'N/A';
             const session = proc.details['Session'] || 'N/A';
             const wow64 = proc.details['Wow64'] || 'N/A';
+            const sids = proc.details['SIDs'] || 'N/A';
+
+            // Count instances of this process name
+            const instanceCount = processData.filter(p => p.name.toLowerCase() === proc.name.toLowerCase()).length;
 
             // Build checklist HTML
             let html = '<div class="comparison-container">';
@@ -2290,7 +2309,10 @@
             html += '</div>';
             html += '<div style="margin-left: 1.5rem; font-size: 0.875rem;">';
             html += '<div style="color: var(--warning);">Expected: <span style="color: var(--text-primary); font-family: monospace;">' + baseline.imagePath + '</span></div>';
-            html += '<div style="color: var(--success); margin-top: 0.25rem;">Actual: <span style="color: var(--text-primary); font-family: monospace; word-break: break-all;">' + cmdLine + '</span></div>';
+            html += '<div style="color: var(--success); margin-top: 0.25rem;">Actual: <span style="color: var(--text-primary); font-family: monospace; word-break: break-all;">' + actualPath + '</span></div>';
+            if (cmdLine !== 'N/A' && cmdLine !== actualPath) {
+                html += '<div style="color: var(--text-muted); margin-top: 0.25rem; font-size: 0.8rem;">Full command: ' + cmdLine + '</div>';
+            }
             html += '</div>';
             html += '</div>';
 
@@ -2301,7 +2323,7 @@
             html += '</div>';
             html += '<div style="margin-left: 1.5rem; font-size: 0.875rem;">';
             html += '<div style="color: var(--warning);">Expected: <span style="color: var(--text-primary); font-family: monospace;">' + baseline.instances + '</span></div>';
-            html += '<div style="color: var(--text-muted); margin-top: 0.25rem;">ℹ️ Check manually in pslist/psscan tabs</div>';
+            html += '<div style="color: var(--success); margin-top: 0.25rem;">Actual: <span style="color: var(--text-primary); font-family: monospace;">' + instanceCount + ' instance(s) of ' + proc.name + '</span></div>';
             html += '</div>';
             html += '</div>';
 
@@ -2312,7 +2334,7 @@
             html += '</div>';
             html += '<div style="margin-left: 1.5rem; font-size: 0.875rem;">';
             html += '<div style="color: var(--warning);">Expected: <span style="color: var(--text-primary); font-family: monospace;">' + baseline.userAccount + '</span></div>';
-            html += '<div style="color: var(--text-muted); margin-top: 0.25rem;">ℹ️ Check SIDs in process details</div>';
+            html += '<div style="color: var(--success); margin-top: 0.25rem;">Actual SIDs: <span style="color: var(--text-primary); font-family: monospace; font-size: 0.8rem; word-break: break-all;">' + sids + '</span></div>';
             html += '</div>';
             html += '</div>';
 
