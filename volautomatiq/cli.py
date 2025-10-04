@@ -118,9 +118,12 @@ For more information, visit: https://github.com/yourusername/volautomatiq
         import subprocess
         import os
 
+        # Use absolute path for image
+        abs_image_path = str(Path(args.image_path).resolve())
+
         server_cmd = [
             "volautomatiq-server",
-            "-f", args.image_path,
+            "-f", abs_image_path,
             "--profile", scanner.profile,
         ]
 
@@ -141,7 +144,7 @@ For more information, visit: https://github.com/yourusername/volautomatiq
         except Exception as e:
             print(f"[!] Could not start API server: {e}")
             print("[*] You can start it manually with:")
-            print(f"    volautomatiq-server -f \"{args.image_path}\" --profile \"{scanner.profile}\"")
+            print(f"    volautomatiq-server -f \"{abs_image_path}\" --profile \"{scanner.profile}\"")
 
         # Exit with error code if any scans failed
         if any(not r.success for r in results):
@@ -203,15 +206,19 @@ def serve():
 
     args = parser.parse_args()
 
-    # Validate image path exists
-    if not Path(args.image_path).exists():
+    # Validate image path exists and convert to absolute
+    image_path = Path(args.image_path)
+    if not image_path.exists():
         print(f"[!] Error: Memory image not found: {args.image_path}", file=sys.stderr)
         sys.exit(1)
 
+    # Use absolute path
+    abs_image_path = str(image_path.resolve())
+
     try:
-        # Initialize scanner
+        # Initialize scanner with absolute path
         scanner = VolatilityScanner(
-            image_path=args.image_path,
+            image_path=abs_image_path,
             profile=args.profile,
             vol_path=args.vol_path,
         )

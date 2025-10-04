@@ -25,6 +25,8 @@ class VolatilityAPIServer:
         self.app.add_url_rule('/api/filescan', 'filescan', self.run_filescan, methods=['POST'])
         self.app.add_url_rule('/api/procdump', 'procdump', self.run_dumpfiles, methods=['POST'])
         self.app.add_url_rule('/api/procdump-pid', 'procdump_pid', self.run_procdump, methods=['POST'])
+        self.app.add_url_rule('/api/memdump', 'memdump', self.run_memdump, methods=['POST'])
+        self.app.add_url_rule('/api/malfind', 'malfind', self.run_malfind, methods=['POST'])
         self.app.add_url_rule('/api/status', 'status', self.get_status, methods=['GET'])
 
     def run_handles(self):
@@ -267,6 +269,160 @@ class VolatilityAPIServer:
             return jsonify({
                 'success': False,
                 'error': 'Procdump timed out after 5 minutes'
+            }), 500
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+    def run_memdump(self):
+        """Execute memdump plugin to dump process addressable memory by PID.
+
+        Expects JSON: {"pid": 2748, "output_dir": "./dumps"}
+        """
+        data = request.get_json()
+        pid = data.get('pid')
+        output_dir = data.get('output_dir', './dumps')
+
+        if not pid:
+            return jsonify({'error': 'PID is required'}), 400
+
+        try:
+            import subprocess
+            import os
+            from datetime import datetime
+
+            # Create output directory if it doesn't exist
+            os.makedirs(output_dir, exist_ok=True)
+
+            # Build memdump command
+            cmd = [
+                self.scanner.vol_path,
+                "-f", str(self.scanner.image_path),
+                "--profile", self.scanner.profile,
+                "memdump",
+                "-p", str(pid),
+                "--dump-dir", output_dir
+            ]
+
+            print(f"  Running memdump for PID {pid}...")
+            start_time = datetime.now()
+
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=600,  # 10 minutes for large memory dumps
+            )
+
+            duration = (datetime.now() - start_time).total_seconds()
+
+            if result.returncode == 0:
+                # List files in output directory to show what was dumped
+                try:
+                    dumped_files = sorted(os.listdir(output_dir), key=lambda f: os.path.getmtime(os.path.join(output_dir, f)), reverse=True)
+                    # Get files created in the last few seconds
+                    recent_files = []
+                    cutoff_time = datetime.now().timestamp() - 15
+                    for f in dumped_files:
+                        file_path = os.path.join(output_dir, f)
+                        if os.path.getmtime(file_path) > cutoff_time:
+                            recent_files.append(f)
+
+                    if recent_files:
+                        file_list = '\n'.join(recent_files)
+                        return jsonify({
+                            'success': True,
+                            'output': result.stdout,
+                            'files': recent_files,
+                            'directory': os.path.abspath(output_dir),
+                            'message': f'Memory dumped successfully:\n{file_list}',
+                            'duration': duration
+                        })
+                    else:
+                        return jsonify({
+                            'success': True,
+                            'output': result.stdout,
+                            'directory': os.path.abspath(output_dir),
+                            'message': 'Memory dump completed. Check the output directory.',
+                            'duration': duration
+                        })
+                except Exception as e:
+                    return jsonify({
+                        'success': True,
+                        'output': result.stdout,
+                        'directory': os.path.abspath(output_dir),
+                        'message': 'Memory dump completed',
+                        'duration': duration
+                    })
+            else:
+                return jsonify({
+                    'success': False,
+                    'output': result.stdout,
+                    'error': result.stderr or 'Memdump command failed',
+                    'duration': duration
+                })
+
+        except subprocess.TimeoutExpired:
+            return jsonify({
+                'success': False,
+                'error': 'Memdump timed out after 10 minutes'
+            }), 500
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+    def run_malfind(self):
+        """Execute malfind plugin to detect injected code.
+
+        Expects JSON: {"pid": 1234} (optional - if not provided, scans all processes)
+        """
+        data = request.get_json()
+        pid = data.get('pid') if data else None
+
+        try:
+            import subprocess
+            from datetime import datetime
+
+            # Build malfind command
+            cmd = [
+                self.scanner.vol_path,
+                "-f", str(self.scanner.image_path),
+                "--profile", self.scanner.profile,
+                "malfind"
+            ]
+
+            # Add PID filter if provided
+            if pid:
+                cmd.extend(["-p", str(pid)])
+
+            print(f"  Running malfind{' for PID ' + str(pid) if pid else ' (all processes)'}...")
+            start_time = datetime.now()
+
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=300,  # 5 minutes timeout
+            )
+
+            duration = (datetime.now() - start_time).total_seconds()
+
+            if result.returncode == 0:
+                return jsonify({
+                    'success': True,
+                    'output': result.stdout,
+                    'duration': duration
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'output': result.stdout,
+                    'error': result.stderr or 'Malfind command failed',
+                    'duration': duration
+                })
+
+        except subprocess.TimeoutExpired:
+            return jsonify({
+                'success': False,
+                'error': 'Malfind timed out after 5 minutes'
             }), 500
         except Exception as e:
             return jsonify({'error': str(e)}), 500

@@ -1120,6 +1120,19 @@
                 </div>
             </div>
             <div class="on-demand-group">
+                <label class="on-demand-label">Malfind (optional PID)</label>
+                <div style="display: flex; gap: 0.5rem;">
+                    <input
+                        type="number"
+                        class="on-demand-input"
+                        id="malfindPid"
+                        placeholder="PID (optional - blank = all)..."
+                        style="min-width: 200px;"
+                    >
+                    <button class="on-demand-btn" onclick="runMalfind()">Run Malfind</button>
+                </div>
+            </div>
+            <div class="on-demand-group">
                 <label class="on-demand-label">API Server</label>
                 <div style="display: flex; flex-direction: column; gap: 0.5rem;">
                     <div id="serverStatus" style="font-size: 0.75rem; color: var(--text-muted);">
@@ -1228,6 +1241,19 @@
             </div>
             <div class="tree-container" id="pstree-viz"></div>
             <div class="graph-container" id="pstree-graph" style="display: none;"></div>
+            {% elif result.plugin in ['netscan', 'getsids', 'dlllist'] and result.success %}
+            <div style="margin-bottom: 1rem;">
+                {% if result.plugin == 'netscan' %}
+                <input type="text" id="filter-netscan" placeholder="🔍 Filter by state (e.g., LISTENING, ESTABLISHED, CLOSED)..."
+                       style="width: 100%; padding: 0.75rem; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 0.375rem; color: var(--text-primary); font-family: monospace;"
+                       oninput="filterOutput('netscan', this.value)">
+                {% elif result.plugin in ['getsids', 'dlllist'] %}
+                <input type="text" id="filter-{{ result.plugin }}" placeholder="🔍 Filter by PID..."
+                       style="width: 100%; padding: 0.75rem; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 0.375rem; color: var(--text-primary); font-family: monospace;"
+                       oninput="filterOutput('{{ result.plugin }}', this.value)">
+                {% endif %}
+            </div>
+            <div class="output" id="output-{{ result.plugin }}">{{ result.output }}</div>
             {% else %}
             <div class="output">{{ result.output }}</div>
             {% endif %}
@@ -2097,6 +2123,45 @@
             }
         }
 
+        // Run malfind plugin
+        async function runMalfind() {
+            const pid = document.getElementById('malfindPid').value;
+
+            if (!serverConnected) {
+                alert('API server not connected. Please start the server:\nvolautomatiq-server -f "{{ image_path }}" --profile "{{ profile }}"');
+                return;
+            }
+
+            const loadingMsg = pid ?
+                `Running malfind for PID ${pid}...` :
+                'Running malfind for all processes...';
+
+            showLoading('Malfind', loadingMsg);
+
+            try {
+                const response = await fetch(`${API_BASE}/api/malfind`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ pid: pid ? parseInt(pid) : null })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const title = pid ?
+                        `Malfind results for PID ${pid}` :
+                        'Malfind results (all processes)';
+                    showResults('Malfind', title, data.output, data.duration);
+                } else {
+                    showError('Malfind', data.error || 'Unknown error');
+                }
+            } catch (error) {
+                showError('Malfind', error.message);
+            }
+        }
+
         // Show loading modal
         function showLoading(plugin, message) {
             const modal = document.getElementById('resultsModal');
@@ -2114,14 +2179,123 @@
             modal.classList.add('active');
         }
 
+        // Copy to clipboard function
+        function copyToClipboard(text, btn) {
+            navigator.clipboard.writeText(text).then(() => {
+                // Show success feedback
+                const originalText = btn.textContent;
+                btn.textContent = '✓';
+                btn.style.background = 'var(--success)';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.style.background = 'var(--accent)';
+                }, 1500);
+            }).catch(err => {
+                alert('Failed to copy to clipboard: ' + err);
+            });
+        }
+
+        // Store original plugin outputs for filtering
+        const originalOutputs = {};
+
+        // Initialize original outputs on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            ['netscan', 'getsids', 'dlllist'].forEach(plugin => {
+                const outputDiv = document.getElementById('output-' + plugin);
+                if (outputDiv) {
+                    originalOutputs[plugin] = outputDiv.textContent;
+                }
+            });
+        });
+
+        // Filter output function
+        function filterOutput(plugin, filterValue) {
+            const outputDiv = document.getElementById('output-' + plugin);
+            if (!outputDiv || !originalOutputs[plugin]) return;
+
+            const originalText = originalOutputs[plugin];
+
+            if (!filterValue || filterValue.trim() === '') {
+                // No filter - show original
+                outputDiv.textContent = originalText;
+                return;
+            }
+
+            const lines = originalText.split('\n');
+            let filteredLines = [];
+
+            if (plugin === 'netscan') {
+                // Filter by state (case-insensitive)
+                const filterLower = filterValue.toLowerCase().trim();
+                filteredLines = lines.filter(line =>
+                    line.toLowerCase().includes(filterLower)
+                );
+            } else if (plugin === 'getsids' || plugin === 'dlllist') {
+                // Filter by PID - match "pid: XXX" or "pid:    XXX"
+                const pidFilter = filterValue.trim();
+
+                // Keep header lines (first few lines before any process data)
+                let inTargetProcess = false;
+                let headersDone = false;
+
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+
+                    // Detect when headers end (first line with "pid:")
+                    if (!headersDone) {
+                        if (line.includes('pid:')) {
+                            headersDone = true;
+                        } else {
+                            // Add header lines
+                            filteredLines.push(line);
+                            continue;
+                        }
+                    }
+
+                    // Check for process header line (format: "processname.exe pid: 552" or "System pid:    4")
+                    const pidMatch = line.match(/pid:\s+(\d+)/);
+                    if (pidMatch) {
+                        const linePid = pidMatch[1];
+                        if (linePid === pidFilter) {
+                            inTargetProcess = true;
+                            filteredLines.push(line);
+                        } else {
+                            inTargetProcess = false;
+                        }
+                    } else if (inTargetProcess) {
+                        // Include lines belonging to target process
+                        filteredLines.push(line);
+
+                        // Stop when we hit separator lines or next process
+                        if (line.includes('*****') || (line.trim() === '' && lines[i+1] && lines[i+1].includes('pid:'))) {
+                            inTargetProcess = false;
+                        }
+                    }
+                }
+            }
+
+            if (filteredLines.length === 0) {
+                outputDiv.textContent = 'No results match the filter "' + filterValue + '"';
+            } else {
+                outputDiv.textContent = filteredLines.join('\n');
+            }
+        }
+
         // Show results modal
         function showResults(plugin, title, output, duration) {
             const modalTitle = document.getElementById('modalTitle');
             const content = document.getElementById('modalContent');
 
             modalTitle.textContent = `${plugin} - ${duration.toFixed(1)}s`;
+
+            // Escape the output for safe embedding
+            const escapedOutput = output.replace(/`/g, '\\`').replace(/\$/g, '\\$');
+
             content.innerHTML = `
-                <h3 style="margin-bottom: 1rem;">${title}</h3>
+                <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+                    <h3 style="margin: 0;">${title}</h3>
+                    <button onclick="copyToClipboard(\`${escapedOutput}\`, this)" style="padding: 0.4rem 0.6rem; background: var(--accent); color: var(--bg-primary); border: none; border-radius: 0.375rem; cursor: pointer; font-size: 1.1rem; line-height: 1;">📋</button>
+                </div>
                 <pre class="output">${output || 'No results found'}</pre>
             `;
         }
@@ -2416,15 +2590,20 @@
                 <div style="padding: 1rem;">
                     <h3 style="margin-bottom: 1rem;">Process: ${proc.name} (PID: ${proc.pid})</h3>
 
-                    <div style="background: var(--bg-tertiary); padding: 1rem; border-radius: 0.375rem; margin-bottom: 1rem;">
-                        <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.5rem;">Command that will be executed:</p>
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Dump Type:</label>
+                    <select id="dumpType" onchange="updateDumpDescription()" style="width: 100%; padding: 0.5rem; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 0.375rem; color: var(--text-primary); margin-bottom: 1rem;">
+                        <option value="procdump">ProcdumpExecutable only</option>
+                        <option value="memdump">Memdump - Full addressable memory</option>
+                    </select>
+
+                    <div id="dumpDescription" style="background: var(--bg-tertiary); padding: 1rem; border-radius: 0.375rem; margin-bottom: 1rem;">
+                        <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.5rem;">Command:</p>
                         <code style="font-size: 0.75rem; color: var(--accent);">volatility procdump -p ${proc.pid} --dump-dir [output_dir]</code>
+                        <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.5rem;">Dumps the process executable (e.g., executable.${proc.pid}.exe)</p>
                     </div>
 
                     <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Output Directory:</label>
                     <input type="text" id="dumpOutputDir" value="./dumps" placeholder="e.g., ./dumps" style="width: 100%; padding: 0.5rem; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 0.375rem; color: var(--text-primary); margin-bottom: 1rem;">
-
-                    <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1rem;">The process executable will be dumped (e.g., executable.${proc.pid}.exe)</p>
 
                     <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
                         <button onclick="executeDump(${proc.pid})" class="on-demand-btn">Start Dump</button>
@@ -2436,19 +2615,46 @@
             document.getElementById('resultsModal').classList.add('active');
         }
 
+        // Update dump description based on selected type
+        function updateDumpDescription() {
+            const dumpType = document.getElementById('dumpType').value;
+            const descDiv = document.getElementById('dumpDescription');
+
+            if (dumpType === 'procdump') {
+                descDiv.innerHTML = `
+                    <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.5rem;">Command:</p>
+                    <code style="font-size: 0.75rem; color: var(--accent);">volatility procdump -p [PID] --dump-dir [output_dir]</code>
+                    <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.5rem;">Dumps the process executable (smaller, faster)</p>
+                `;
+            } else {
+                descDiv.innerHTML = `
+                    <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.5rem;">Command:</p>
+                    <code style="font-size: 0.75rem; color: var(--accent);">volatility memdump -p [PID] --dump-dir [output_dir]</code>
+                    <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.5rem;">Dumps all addressable memory pages (larger, includes heap/stack/modules - can take longer)</p>
+                `;
+            }
+        }
+
         // Execute process dump
         async function executeDump(pid) {
             const outputDir = document.getElementById('dumpOutputDir').value;
+            const dumpType = document.getElementById('dumpType').value;
 
             if (!outputDir) {
                 alert('Please provide an output directory');
                 return;
             }
 
-            showLoading('Process Dump', 'Dumping process memory... This may take a few minutes.');
+            const dumpTypeName = dumpType === 'memdump' ? 'Memory Dump' : 'Process Dump';
+            const loadingMsg = dumpType === 'memdump' ?
+                'Dumping full addressable memory... This may take several minutes.' :
+                'Dumping process executable... This may take a few minutes.';
+
+            showLoading(dumpTypeName, loadingMsg);
 
             try {
-                const response = await fetch(`${API_BASE}/api/procdump-pid`, {
+                const endpoint = dumpType === 'memdump' ? '/api/memdump' : '/api/procdump-pid';
+                const response = await fetch(`${API_BASE}${endpoint}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -2465,7 +2671,7 @@
                     const modalTitle = document.getElementById('modalTitle');
                     const content = document.getElementById('modalContent');
 
-                    modalTitle.textContent = 'Process Dump - Success';
+                    modalTitle.textContent = dumpTypeName + ' - Success';
 
                     let filesHtml = '';
                     if (data.files && data.files.length > 0) {
@@ -2476,8 +2682,12 @@
                         filesHtml += '</ul>';
                     }
 
+                    const successMsg = dumpType === 'memdump' ?
+                        '✓ Memory dumped successfully!' :
+                        '✓ Process dumped successfully!';
+
                     content.innerHTML = '<div style="padding: 1rem;">' +
-                        '<h3 style="color: var(--success); margin-bottom: 1rem;">✓ Process dumped successfully!</h3>' +
+                        '<h3 style="color: var(--success); margin-bottom: 1rem;">' + successMsg + '</h3>' +
                         '<p style="margin-bottom: 0.5rem;"><strong>PID:</strong> ' + pid + '</p>' +
                         filesHtml +
                         '<p style="margin-bottom: 0.5rem;"><strong>Directory:</strong></p>' +
@@ -2485,10 +2695,10 @@
                         '<p style="color: var(--text-muted); font-size: 0.875rem;">Duration: ' + data.duration.toFixed(1) + 's</p>' +
                         '</div>';
                 } else {
-                    showError('Process Dump', data.error || 'Unknown error occurred during dump');
+                    showError(dumpTypeName, data.error || 'Unknown error occurred during dump');
                 }
             } catch (error) {
-                showError('Process Dump', error.message);
+                showError(dumpTypeName, error.message);
             }
         }
 

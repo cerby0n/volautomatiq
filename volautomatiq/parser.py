@@ -260,7 +260,7 @@ class VolatilityParser:
             proc.add_detail("SIDs", '\n'.join(sids))
 
     def parse_dlllist(self, output: str):
-        """Parse dlllist output.
+        r"""Parse dlllist output.
 
         Expected format:
         explorer.exe pid: 1860
