@@ -123,6 +123,7 @@
             max-height: 0;
             padding: 0 2rem;
             opacity: 0;
+            pointer-events: none;
         }
 
         .search-wrapper {
@@ -796,6 +797,204 @@
             font-weight: 500;
         }
 
+        /* View Toggle */
+        .view-toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            background: var(--bg-secondary);
+            border-radius: 0.5rem;
+        }
+
+        .view-toggle-label {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .view-toggle-switch {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--bg-tertiary);
+            padding: 0.25rem;
+            border-radius: 2rem;
+            border: 1px solid var(--border);
+        }
+
+        .view-toggle-option {
+            padding: 0.5rem 1.25rem;
+            border-radius: 1.5rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-muted);
+            background: transparent;
+            border: none;
+        }
+
+        .view-toggle-option.active {
+            background: var(--accent);
+            color: var(--bg-primary);
+        }
+
+        /* Graph View */
+        .graph-container {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            overflow: auto;
+            min-height: 400px;
+        }
+
+        .graph-container svg {
+            display: block;
+            margin: 0 auto;
+        }
+
+        .graph-node {
+            cursor: pointer;
+        }
+
+        .graph-node rect {
+            fill: var(--bg-secondary);
+            stroke: var(--border);
+            stroke-width: 2;
+            transition: all 0.2s;
+        }
+
+        .graph-node:hover rect {
+            fill: var(--accent);
+            stroke: var(--accent);
+        }
+
+        .graph-node text {
+            fill: var(--text-primary);
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+            pointer-events: none;
+        }
+
+        .graph-node:hover text {
+            fill: var(--bg-primary);
+        }
+
+        .graph-link {
+            fill: none;
+            stroke: var(--border);
+            stroke-width: 2;
+        }
+
+        /* Baseline Database */
+        .baseline-grid {
+            display: grid;
+            gap: 1.5rem;
+        }
+
+        .baseline-process {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            padding: 1.25rem;
+            transition: all 0.2s;
+        }
+
+        .baseline-process:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        .baseline-process-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--accent);
+            margin-bottom: 0.75rem;
+            font-family: 'Courier New', monospace;
+        }
+
+        .baseline-details {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .baseline-label {
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .baseline-value {
+            color: var(--text-primary);
+            font-family: 'Courier New', monospace;
+        }
+
+        .baseline-description {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            line-height: 1.5;
+        }
+
+        /* Comparison Results */
+        .comparison-container {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            padding: 1rem;
+        }
+
+        .comparison-header {
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+            font-size: 1rem;
+        }
+
+        .comparison-match {
+            color: var(--success);
+        }
+
+        .comparison-no-match {
+            color: var(--warning);
+        }
+
+        .comparison-anomaly {
+            background: var(--bg-secondary);
+            border-left: 3px solid var(--error);
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            border-radius: 0.25rem;
+        }
+
+        .comparison-anomaly-title {
+            font-weight: 600;
+            color: var(--error);
+            margin-bottom: 0.25rem;
+        }
+
+        .comparison-anomaly-detail {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-left: 1rem;
+        }
+
+        .comparison-baseline-info {
+            background: var(--bg-secondary);
+            border-left: 3px solid var(--success);
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
         /* Scrollbar */
         ::-webkit-scrollbar {
             width: 10px;
@@ -968,9 +1167,11 @@
             <button class="close-detail" onclick="closeSidePanel()">✕</button>
         </div>
         <div class="detail-grid" id="sidePanelGrid"></div>
+        <div id="comparisonResult" style="margin-top: 1rem; display: none;"></div>
         <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
             <button class="mark-finding-btn" id="markFindingSideBtn" onclick="markAsFindingSide()">🔖 Mark as Finding</button>
             <button class="mark-finding-btn" style="background: var(--accent);" onclick="dumpProcessSide()">💾 Dump Process</button>
+            <button class="mark-finding-btn" style="background: var(--warning);" onclick="compareToBaseline()">🔍 Compare to Baseline</button>
         </div>
     </div>
 
@@ -978,6 +1179,9 @@
         <div class="tab" data-tab="findings">
             Findings
             <span class="tab-badge" id="findingsCount">0</span>
+        </div>
+        <div class="tab" data-tab="baseline">
+            Windows Baseline
         </div>
         {% for result in results %}
         <div class="tab {% if result.success %}success{% else %}error{% endif %} {% if loop.first %}active{% endif %}"
@@ -1001,6 +1205,11 @@
                 </div>
             </div>
         </div>
+        <div class="tab-content" id="content-baseline">
+            <h2 style="color: var(--accent); margin-bottom: 1.5rem;">Windows Process Baseline Database</h2>
+            <p style="margin-bottom: 1.5rem; color: var(--text-muted);">Reference data from SANS Hunt Evil poster - known-good Windows process characteristics</p>
+            <div id="baselineContainer"></div>
+        </div>
         {% for result in results %}
         <div class="tab-content {% if loop.first %}active{% endif %}" id="content-{{ result.plugin }}">
             {% if not result.success and result.error %}
@@ -1010,7 +1219,15 @@
             {% endif %}
 
             {% if result.plugin == 'pstree' and result.success %}
+            <div class="view-toggle-container">
+                <span class="view-toggle-label">View:</span>
+                <div class="view-toggle-switch">
+                    <button class="view-toggle-option active" onclick="switchView('tree')">Tree</button>
+                    <button class="view-toggle-option" onclick="switchView('graph')">Graph</button>
+                </div>
+            </div>
             <div class="tree-container" id="pstree-viz"></div>
+            <div class="graph-container" id="pstree-graph" style="display: none;"></div>
             {% else %}
             <div class="output">{{ result.output }}</div>
             {% endif %}
@@ -1025,22 +1242,22 @@
 
         // Field explanations
         const fieldTooltips = {
-            "Offset (Virtual)": "Virtual memory offset where the process structure is located",
-            "Offset (Physical)": "Physical memory offset of the process structure",
-            "PPID": "Parent Process ID - the PID of the process that created this process",
-            "PID": "Process ID - unique identifier for this process",
-            "Threads": "Number of threads running in this process",
-            "Handles": "Number of object handles opened by this process",
-            "Session": "Session ID - indicates which user session owns this process",
-            "Wow64": "Windows-on-Windows 64-bit - indicates if this is a 32-bit process on 64-bit Windows",
-            "Start Time": "Time when the process was created",
-            "PDB": "Page Directory Base - physical address of the process's page directory",
-            "Command Line": "Full command line used to launch this process",
-            "Network Connections": "Active network connections associated with this process",
-            "Tree Level": "Hierarchical level in the process tree (0 = root)",
-            "SIDs": "Security Identifiers (SIDs) associated with this process",
-            "DLL Count": "Number of DLLs (Dynamic Link Libraries) loaded by this process",
-            "DLLs": "List of DLLs loaded by this process"
+            "Offset (Virtual)": "Virtual memory address of the process structure (EPROCESS). Used to locate the process in memory analysis.",
+            "Offset (Physical)": "Physical memory address of the process structure in the RAM dump.",
+            "PID": "Process ID – a unique number assigned to each running process.",
+            "PPID": "Parent Process ID – identifies the process that spawned this one. Unexpected parent-child relationships can indicate malicious activity.",
+            "Threads": "Number of active threads in the process. Unusually high or low counts may suggest code injection or malfunction.",
+            "Handles": "Number of handles (open objects like files, registry keys, etc.). A very high count may indicate enumeration or abuse.",
+            "Session": "Windows Session ID this process belongs to. Session 0 = system services, higher = user sessions. GUI apps in Session 0 are suspicious.",
+            "Wow64": "Indicates if a 32-bit process is running on 64-bit Windows (Wow64). Critical system processes should not run under Wow64.",
+            "Start Time": "Timestamp when the process was created. Late-starting system processes or unusual timing can suggest injection or persistence.",
+            "PDB": "Page Directory Base – physical address of the page directory used for memory translation. Useful for low-level memory analysis.",
+            "Command Line": "Full command line used to launch the process. Can reveal hidden arguments or execution paths.",
+            "Network Connections": "List of network sockets opened by the process. Unexpected external connections may indicate C2 or exfiltration.",
+            "Tree Level": "Depth of the process in the parent-child hierarchy. Helps visualize process ancestry and spot anomalies.",
+            "SIDs": "Security Identifiers (SIDs) associated with the process. Indicates which user or service context it runs under.",
+            "DLL Count": "Total number of DLLs loaded in the process. A high or unusual count might indicate injection or malicious behavior.",
+            "DLLs": "Names/paths of DLLs loaded by the process. Unknown or unsigned DLLs can be signs of compromise."
         };
 
         // Field ordering - important fields first, then full-width at the end
@@ -1065,6 +1282,146 @@
 
         // Full-width fields (take entire row)
         const fullWidthFields = ["Command Line", "Network Connections", "SIDs", "DLLs"];
+
+        // Windows Process Baseline Database (from SANS Hunt Evil poster)
+        const windowsBaseline = [
+            {
+                name: "System",
+                imagePath: "ntoskrnl.exe",
+                parentProcess: "None",
+                instances: "One",
+                userAccount: "Local System",
+                startTime: "At boot time",
+                description: "The Windows kernel and system process. Always PID 4. No parent process. Should never have a network connection or child processes beyond smss.exe."
+            },
+            {
+                name: "smss.exe",
+                imagePath: "%SystemRoot%\\System32\\smss.exe",
+                parentProcess: "System",
+                instances: "One master instance and child session instances",
+                userAccount: "Local System",
+                startTime: "Within seconds of boot time for the master instance",
+                description: "Session Manager Subsystem. First user-mode process started by kernel. Starts csrss.exe and wininit.exe in Session 0, csrss.exe and winlogon.exe in Session 1+. Master instance exits after spawning sessions."
+            },
+            {
+                name: "csrss.exe",
+                imagePath: "%SystemRoot%\\System32\\csrss.exe",
+                parentProcess: "Created by smss.exe (parent exits)",
+                instances: "Two or more (one per session)",
+                userAccount: "Local System",
+                startTime: "Within seconds of boot time for Session 0, login for Session 1+",
+                description: "Client/Server Runtime Subsystem. Critical Windows subsystem. Manages processes and threads. Should have no network connections."
+            },
+            {
+                name: "wininit.exe",
+                imagePath: "%SystemRoot%\\System32\\wininit.exe",
+                parentProcess: "Created by smss.exe (parent exits)",
+                instances: "One",
+                userAccount: "Local System",
+                startTime: "Within seconds of boot time",
+                description: "Windows Start-Up Application. Starts services.exe (SCM), lsass.exe, and lsaiso.exe. Should be in Session 0 only."
+            },
+            {
+                name: "services.exe",
+                imagePath: "%SystemRoot%\\System32\\services.exe",
+                parentProcess: "wininit.exe",
+                instances: "One",
+                userAccount: "Local System",
+                startTime: "Within seconds of boot time",
+                description: "Service Control Manager (SCM). Starts, stops, and manages Windows services. Parent of all svchost.exe processes. Suspicious if has network connections."
+            },
+            {
+                name: "svchost.exe",
+                imagePath: "%SystemRoot%\\System32\\svchost.exe",
+                parentProcess: "services.exe",
+                instances: "Multiple",
+                userAccount: "Various (SYSTEM, Network Service, Local Service)",
+                startTime: "Typically within seconds of boot time",
+                description: "Service Host process. Generic host for Windows services. Multiple instances normal. Must always be child of services.exe. Command line should contain -k parameter."
+            },
+            {
+                name: "lsass.exe",
+                imagePath: "%SystemRoot%\\System32\\lsass.exe",
+                parentProcess: "wininit.exe",
+                instances: "One",
+                userAccount: "Local System",
+                startTime: "Within seconds of boot time",
+                description: "Local Security Authority Subsystem Service. Handles authentication and Active Directory. Common target for credential dumping (mimikatz). Only one instance should exist."
+            },
+            {
+                name: "lsaiso.exe",
+                imagePath: "%SystemRoot%\\System32\\lsaiso.exe",
+                parentProcess: "wininit.exe",
+                instances: "Zero or One",
+                userAccount: "Local System",
+                startTime: "Within seconds of boot time (if Credential Guard enabled)",
+                description: "LSA Isolated process for Credential Guard. Runs credentials in virtualization-based security. Only present on systems with Credential Guard enabled."
+            },
+            {
+                name: "winlogon.exe",
+                imagePath: "%SystemRoot%\\System32\\winlogon.exe",
+                parentProcess: "Created by smss.exe (parent exits)",
+                instances: "One per session",
+                userAccount: "Local System",
+                startTime: "At login for Session 1+",
+                description: "Windows Logon Process. Handles user login/logout and Secure Attention Sequence (Ctrl+Alt+Del). Loads user profile. Parent of userinit.exe."
+            },
+            {
+                name: "explorer.exe",
+                imagePath: "%SystemRoot%\\explorer.exe",
+                parentProcess: "userinit.exe (parent exits)",
+                instances: "One per interactive user session",
+                userAccount: "Logged on user",
+                startTime: "At user login",
+                description: "Windows Explorer. Provides desktop shell and file management. Parent of most user-launched processes. Multiple instances can indicate issues or separate user sessions."
+            },
+            {
+                name: "RuntimeBroker.exe",
+                imagePath: "%SystemRoot%\\System32\\RuntimeBroker.exe",
+                parentProcess: "svchost.exe",
+                instances: "Multiple (one per Universal app)",
+                userAccount: "Logged on user",
+                startTime: "When Universal/Modern apps are launched",
+                description: "Runtime Broker. Manages permissions for Universal/Modern apps. Parent should be svchost.exe. Multiple instances normal when running multiple apps."
+            },
+            {
+                name: "taskhostw.exe",
+                imagePath: "%SystemRoot%\\System32\\taskhostw.exe",
+                parentProcess: "svchost.exe",
+                instances: "Multiple",
+                userAccount: "Logged on user or SYSTEM",
+                startTime: "At boot or user login",
+                description: "Task Host Window. Generic host for Windows tasks like background tasks and scheduled tasks. Parent should be svchost.exe."
+            }
+        ];
+
+        // Render baseline database
+        function renderBaseline() {
+            const container = document.getElementById('baselineContainer');
+            if (!container) return;
+
+            let html = '<div class="baseline-grid">';
+
+            windowsBaseline.forEach(proc => {
+                html += '<div class="baseline-process">';
+                html += '<div class="baseline-process-name">' + proc.name + '</div>';
+                html += '<div class="baseline-details">';
+                html += '<div class="baseline-label">Image Path:</div><div class="baseline-value">' + proc.imagePath + '</div>';
+                html += '<div class="baseline-label">Parent Process:</div><div class="baseline-value">' + proc.parentProcess + '</div>';
+                html += '<div class="baseline-label">Instances:</div><div class="baseline-value">' + proc.instances + '</div>';
+                html += '<div class="baseline-label">User Account:</div><div class="baseline-value">' + proc.userAccount + '</div>';
+                html += '<div class="baseline-label">Start Time:</div><div class="baseline-value">' + proc.startTime + '</div>';
+                html += '</div>';
+                html += '<div class="baseline-description">' + proc.description + '</div>';
+                html += '</div>';
+            });
+
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        // Initialize baseline on load
+        renderBaseline();
 
         // Current active tab
         let currentTab = 'pslist';
@@ -1216,6 +1573,13 @@
             // Store for findings
             currentProcessForFinding = proc;
 
+            // Reset comparison results
+            const comparisonDiv = document.getElementById('comparisonResult');
+            if (comparisonDiv) {
+                comparisonDiv.style.display = 'none';
+                comparisonDiv.innerHTML = '';
+            }
+
             renderDetailsToGrid(
                 proc,
                 document.getElementById('sidePanelGrid'),
@@ -1283,6 +1647,236 @@
 
         // Initialize tree when page loads
         buildProcessTree();
+
+        // Build process graph (SVG flowchart - horizontal layout)
+        function buildProcessGraph() {
+            const graphContainer = document.getElementById('pstree-graph');
+            if (!graphContainer) return;
+
+            // Build parent-child relationships
+            const childrenMap = {};
+            const processMap = {};
+
+            processData.forEach(proc => {
+                processMap[proc.pid] = proc;
+                const ppid = proc.details.PPID;
+                if (ppid) {
+                    if (!childrenMap[ppid]) {
+                        childrenMap[ppid] = [];
+                    }
+                    childrenMap[ppid].push(proc);
+                }
+            });
+
+            // Find root processes
+            const roots = processData.filter(proc => {
+                const ppid = proc.details.PPID;
+                return !ppid || ppid === '0' || !processMap[ppid];
+            });
+
+            // Layout parameters - VERTICAL layout (top to bottom)
+            const nodeWidth = 200;
+            const nodeHeight = 60;
+            const levelGap = 120; // Vertical gap between levels
+            const siblingGap = 250; // Horizontal gap between siblings
+
+            // Calculate positions using vertical hierarchical layout
+            const nodes = [];
+            const links = [];
+            let xOffset = 100;
+
+            function layoutNode(proc, level = 0, parentX = null, parentY = null) {
+                const children = childrenMap[proc.pid] || [];
+                const x = xOffset;
+                const y = level * levelGap + 50; // Y increases with level (top to bottom)
+
+                nodes.push({
+                    pid: proc.pid,
+                    name: proc.name,
+                    x: x,
+                    y: y
+                });
+
+                if (parentX !== null && parentY !== null) {
+                    // Curved connection line (top to bottom)
+                    const midY = (parentY + nodeHeight + y) / 2;
+                    links.push({
+                        x1: parentX + nodeWidth / 2,
+                        y1: parentY + nodeHeight,
+                        x2: x + nodeWidth / 2,
+                        y2: y,
+                        midY: midY
+                    });
+                }
+
+                xOffset += nodeWidth + siblingGap;
+
+                children.forEach(child => {
+                    layoutNode(child, level + 1, x, y);
+                });
+            }
+
+            roots.forEach(root => {
+                layoutNode(root);
+            });
+
+            // Calculate SVG dimensions
+            const maxX = Math.max(...nodes.map(n => n.x)) + nodeWidth + 100;
+            const maxY = Math.max(...nodes.map(n => n.y)) + nodeHeight + 100;
+
+            // Create SVG with viewBox for zoom/pan support
+            let svg = '<svg id="process-graph-svg" width="100%" height="800" viewBox="0 0 ' + maxX + ' ' + maxY + '" xmlns="http://www.w3.org/2000/svg" style="border: 1px solid var(--border); border-radius: 0.5rem;">';
+
+            // Add group for zoom/pan transformations
+            svg += '<g id="graph-content">';
+
+            // Draw curved links (vertical - top to bottom)
+            links.forEach(link => {
+                svg += '<path class="graph-link" d="M ' + link.x1 + ' ' + link.y1 + ' C ' + link.x1 + ' ' + link.midY + ', ' + link.x2 + ' ' + link.midY + ', ' + link.x2 + ' ' + link.y2 + '" />';
+            });
+
+            // Draw nodes
+            nodes.forEach(node => {
+                const labelPID = '[' + node.pid + ']';
+                const labelName = node.name.length > 18 ? node.name.substring(0, 15) + '...' : node.name;
+
+                svg += '<g class="graph-node" onclick="showProcessDetailsInSidePanel(' + node.pid + ')">';
+                svg += '<rect x="' + node.x + '" y="' + node.y + '" width="' + nodeWidth + '" height="' + nodeHeight + '" rx="5" />';
+                svg += '<text x="' + (node.x + nodeWidth / 2) + '" y="' + (node.y + 22) + '" text-anchor="middle" font-weight="bold">' + labelPID + '</text>';
+                svg += '<text x="' + (node.x + nodeWidth / 2) + '" y="' + (node.y + 38) + '" text-anchor="middle">' + labelName + '</text>';
+                svg += '</g>';
+            });
+
+            svg += '</g>'; // Close graph-content group
+            svg += '</svg>';
+
+            // Add controls
+            svg = '<div style="margin-bottom: 0.5rem; display: flex; gap: 0.5rem; align-items: center;">' +
+                  '<button onclick="zoomGraph(1.2)" style="padding: 0.25rem 0.75rem; background: var(--accent); border: none; border-radius: 0.25rem; color: var(--bg-primary); cursor: pointer;">Zoom +</button>' +
+                  '<button onclick="zoomGraph(0.8)" style="padding: 0.25rem 0.75rem; background: var(--accent); border: none; border-radius: 0.25rem; color: var(--bg-primary); cursor: pointer;">Zoom -</button>' +
+                  '<button onclick="resetGraphZoom()" style="padding: 0.25rem 0.75rem; background: var(--border); border: none; border-radius: 0.25rem; color: var(--text-primary); cursor: pointer;">Reset</button>' +
+                  '<span style="font-size: 0.875rem; color: var(--text-muted); margin-left: 1rem;">Drag to pan | Scroll to zoom</span>' +
+                  '</div>' + svg;
+
+            graphContainer.innerHTML = svg || '<p>No process tree data available</p>';
+
+            // Setup zoom/pan
+            setupGraphZoomPan();
+        }
+
+        // Graph zoom/pan state
+        let graphScale = 1;
+        let graphTranslateX = 0;
+        let graphTranslateY = 0;
+        let isDragging = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+
+        function setupGraphZoomPan() {
+            const svg = document.getElementById('process-graph-svg');
+            const content = document.getElementById('graph-content');
+            if (!svg || !content) return;
+
+            // Mouse wheel zoom
+            svg.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const rect = svg.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                const scale = e.deltaY > 0 ? 0.9 : 1.1;
+                zoomGraph(scale);
+            });
+
+            // Mouse drag to pan
+            svg.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                dragStartX = e.clientX - graphTranslateX;
+                dragStartY = e.clientY - graphTranslateY;
+                svg.style.cursor = 'grabbing';
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                graphTranslateX = e.clientX - dragStartX;
+                graphTranslateY = e.clientY - dragStartY;
+                updateGraphTransform();
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    if (svg) svg.style.cursor = 'grab';
+                }
+            });
+
+            svg.style.cursor = 'grab';
+        }
+
+        function zoomGraph(scaleFactor) {
+            graphScale *= scaleFactor;
+            graphScale = Math.max(0.1, Math.min(10, graphScale)); // Limit zoom 0.1x to 10x
+            updateGraphTransform();
+        }
+
+        function resetGraphZoom() {
+            graphScale = 1;
+            graphTranslateX = 0;
+            graphTranslateY = 0;
+            updateGraphTransform();
+        }
+
+        function updateGraphTransform() {
+            const content = document.getElementById('graph-content');
+            if (!content) return;
+            content.setAttribute('transform', 'translate(' + graphTranslateX + ', ' + graphTranslateY + ') scale(' + graphScale + ')');
+        }
+
+        // View switching
+        let currentView = localStorage.getItem('pstreeView') || 'tree';
+
+        function switchView(view) {
+            currentView = view;
+            localStorage.setItem('pstreeView', view);
+
+            const treeContainer = document.getElementById('pstree-viz');
+            const graphContainer = document.getElementById('pstree-graph');
+            const toggleButtons = document.querySelectorAll('.view-toggle-option');
+
+            if (view === 'tree') {
+                treeContainer.style.display = 'block';
+                graphContainer.style.display = 'none';
+            } else {
+                treeContainer.style.display = 'none';
+                graphContainer.style.display = 'block';
+                if (!graphContainer.innerHTML || graphContainer.innerHTML === '') {
+                    buildProcessGraph();
+                }
+            }
+
+            toggleButtons.forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+
+        // Initialize graph on first load if needed
+        if (currentView === 'graph') {
+            buildProcessGraph();
+            const treeContainer = document.getElementById('pstree-viz');
+            const graphContainer = document.getElementById('pstree-graph');
+            if (treeContainer && graphContainer) {
+                treeContainer.style.display = 'none';
+                graphContainer.style.display = 'block';
+                const toggleButtons = document.querySelectorAll('.view-toggle-option');
+                toggleButtons.forEach(btn => {
+                    btn.classList.remove('active');
+                    if (btn.textContent === 'Graph') {
+                        btn.classList.add('active');
+                    }
+                });
+            }
+        }
 
         // Get references to side panel elements
         const resizeHandle = document.getElementById('resizeHandle');
@@ -1635,6 +2229,176 @@
         function dumpProcessSide() {
             if (!currentProcessForFinding) return;
             showDumpDialog(currentProcessForFinding);
+        }
+
+        // Compare process to baseline - CHECKLIST approach
+        function compareToBaseline() {
+            if (!currentProcessForFinding) return;
+
+            const proc = currentProcessForFinding;
+            const comparisonDiv = document.getElementById('comparisonResult');
+
+            // Find matching baseline process by name
+            const processName = proc.name.toLowerCase();
+            const baseline = windowsBaseline.find(b => b.name.toLowerCase() === processName);
+
+            if (!baseline) {
+                comparisonDiv.innerHTML = `
+                    <div class="comparison-container">
+                        <div class="comparison-header comparison-no-match">⚠️ No Baseline Match Found</div>
+                        <p style="font-size: 0.875rem; color: var(--text-secondary);">
+                            This process (<strong>${proc.name}</strong>) is not in the Windows baseline database.
+                            This could be a legitimate third-party application or a potentially suspicious process.
+                        </p>
+                    </div>
+                `;
+                comparisonDiv.style.display = 'block';
+                return;
+            }
+
+            // Get actual process values
+            const ppid = proc.details.PPID ? String(proc.details.PPID) : '0';
+            const ppidName = processData.find(p => String(p.pid) === ppid)?.name || 'Unknown';
+            const cmdLine = proc.details['Command Line'] || 'N/A';
+
+            // Extract path from command line
+            let actualPath = 'N/A';
+            if (cmdLine && cmdLine !== 'N/A') {
+                // Try to extract path from command line
+                const pathMatch = cmdLine.match(/^"?([^"]+\.exe)/i) || cmdLine.match(/^([^\s]+\.exe)/i);
+                if (pathMatch) {
+                    actualPath = pathMatch[1];
+                } else {
+                    actualPath = cmdLine.split(' ')[0];
+                }
+            }
+
+            const hasNetworkConnections = proc.details['Network Connections'] && proc.details['Network Connections'] !== 'None';
+            const networkConnections = proc.details['Network Connections'] || 'None';
+            const startTime = proc.details['Start Time'] || 'N/A';
+            const session = proc.details['Session'] || 'N/A';
+            const wow64 = proc.details['Wow64'] || 'N/A';
+            const sids = proc.details['SIDs'] || 'N/A';
+
+            // Count instances of this process name
+            const instanceCount = processData.filter(p => p.name.toLowerCase() === proc.name.toLowerCase()).length;
+
+            // Build checklist HTML
+            let html = '<div class="comparison-container">';
+            html += '<div class="comparison-header" style="color: var(--accent);">📋 Baseline Verification Checklist</div>';
+            html += '<p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 1rem;">Manually verify each characteristic against the baseline:</p>';
+
+            // Checklist items
+            html += '<div style="background: var(--bg-secondary); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem;">';
+
+            // Parent Process
+            html += '<div style="margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border);">';
+            html += '<div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">';
+            html += '<strong style="color: var(--text-primary);">✓ Parent Process</strong>';
+            html += '</div>';
+            html += '<div style="margin-left: 1.5rem; font-size: 0.875rem;">';
+            html += '<div style="color: var(--warning);">Expected: <span style="color: var(--text-primary); font-family: monospace;">' + baseline.parentProcess + '</span></div>';
+            html += '<div style="color: var(--success); margin-top: 0.25rem;">Actual: <span style="color: var(--text-primary); font-family: monospace;">' + ppidName + ' (PID: ' + proc.details.PPID + ')</span></div>';
+            html += '</div>';
+            html += '</div>';
+
+            // Image Path
+            html += '<div style="margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border);">';
+            html += '<div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">';
+            html += '<strong style="color: var(--text-primary);">✓ Image Path</strong>';
+            html += '</div>';
+            html += '<div style="margin-left: 1.5rem; font-size: 0.875rem;">';
+            html += '<div style="color: var(--warning);">Expected: <span style="color: var(--text-primary); font-family: monospace;">' + baseline.imagePath + '</span></div>';
+            html += '<div style="color: var(--success); margin-top: 0.25rem;">Actual: <span style="color: var(--text-primary); font-family: monospace; word-break: break-all;">' + actualPath + '</span></div>';
+            if (cmdLine !== 'N/A' && cmdLine !== actualPath) {
+                html += '<div style="color: var(--text-muted); margin-top: 0.25rem; font-size: 0.8rem;">Full command: ' + cmdLine + '</div>';
+            }
+            html += '</div>';
+            html += '</div>';
+
+            // Number of Instances
+            html += '<div style="margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border);">';
+            html += '<div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">';
+            html += '<strong style="color: var(--text-primary);">✓ Number of Instances</strong>';
+            html += '</div>';
+            html += '<div style="margin-left: 1.5rem; font-size: 0.875rem;">';
+            html += '<div style="color: var(--warning);">Expected: <span style="color: var(--text-primary); font-family: monospace;">' + baseline.instances + '</span></div>';
+            html += '<div style="color: var(--success); margin-top: 0.25rem;">Actual: <span style="color: var(--text-primary); font-family: monospace;">' + instanceCount + ' instance(s) of ' + proc.name + '</span></div>';
+            html += '</div>';
+            html += '</div>';
+
+            // User Account
+            html += '<div style="margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border);">';
+            html += '<div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">';
+            html += '<strong style="color: var(--text-primary);">✓ User Account</strong>';
+            html += '</div>';
+            html += '<div style="margin-left: 1.5rem; font-size: 0.875rem;">';
+            html += '<div style="color: var(--warning);">Expected: <span style="color: var(--text-primary); font-family: monospace;">' + baseline.userAccount + '</span></div>';
+            html += '<div style="color: var(--success); margin-top: 0.25rem;">Actual SIDs: <span style="color: var(--text-primary); font-family: monospace; font-size: 0.8rem; word-break: break-all;">' + sids + '</span></div>';
+            html += '</div>';
+            html += '</div>';
+
+            // Start Time
+            html += '<div style="margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border);">';
+            html += '<div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">';
+            html += '<strong style="color: var(--text-primary);">✓ Start Time</strong>';
+            html += '</div>';
+            html += '<div style="margin-left: 1.5rem; font-size: 0.875rem;">';
+            html += '<div style="color: var(--warning);">Expected: <span style="color: var(--text-primary); font-family: monospace;">' + baseline.startTime + '</span></div>';
+            html += '<div style="color: var(--success); margin-top: 0.25rem;">Actual: <span style="color: var(--text-primary); font-family: monospace;">' + startTime + '</span></div>';
+            html += '</div>';
+            html += '</div>';
+
+            // Network Connections
+            html += '<div style="margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border);">';
+            html += '<div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">';
+            html += '<strong style="color: var(--text-primary);">✓ Network Connections</strong>';
+            html += '</div>';
+            html += '<div style="margin-left: 1.5rem; font-size: 0.875rem;">';
+            const shouldHaveNetwork = !baseline.description.toLowerCase().includes('should have no network') && !baseline.description.toLowerCase().includes('no network connection');
+            if (shouldHaveNetwork) {
+                html += '<div style="color: var(--text-muted);">Expected: <span style="color: var(--text-primary);">May have network connections</span></div>';
+            } else {
+                html += '<div style="color: var(--warning);">Expected: <span style="color: var(--text-primary);">Should have NO network connections</span></div>';
+            }
+            html += '<div style="color: var(--success); margin-top: 0.25rem;">Actual: <span style="color: var(--text-primary); font-family: monospace;">' + (hasNetworkConnections ? networkConnections : 'None') + '</span></div>';
+            html += '</div>';
+            html += '</div>';
+
+            // Session
+            html += '<div style="margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border);">';
+            html += '<div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">';
+            html += '<strong style="color: var(--text-primary);">✓ Session</strong>';
+            html += '</div>';
+            html += '<div style="margin-left: 1.5rem; font-size: 0.875rem;">';
+            html += '<div style="color: var(--text-muted);">ℹ️ Session 0 = System/Services, Session 1+ = User sessions</div>';
+            html += '<div style="color: var(--success); margin-top: 0.25rem;">Actual: <span style="color: var(--text-primary); font-family: monospace;">' + session + '</span></div>';
+            html += '</div>';
+            html += '</div>';
+
+            // Wow64
+            html += '<div style="margin-bottom: 0;">';
+            html += '<div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">';
+            html += '<strong style="color: var(--text-primary);">✓ Wow64 (32-bit on 64-bit)</strong>';
+            html += '</div>';
+            html += '<div style="margin-left: 1.5rem; font-size: 0.875rem;">';
+            html += '<div style="color: var(--text-muted);">ℹ️ Critical system processes should NOT run under Wow64</div>';
+            html += '<div style="color: var(--success); margin-top: 0.25rem;">Actual: <span style="color: var(--text-primary); font-family: monospace;">' + wow64 + '</span></div>';
+            html += '</div>';
+            html += '</div>';
+
+            html += '</div>';
+
+            // Baseline description
+            html += '<div class="comparison-baseline-info">';
+            html += '<strong>📚 Baseline Description:</strong><br><br>';
+            html += '<em>' + baseline.description + '</em>';
+            html += '</div>';
+
+            html += '</div>';
+
+            comparisonDiv.innerHTML = html;
+            comparisonDiv.style.display = 'block';
         }
 
         // Show dump dialog
