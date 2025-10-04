@@ -1241,7 +1241,7 @@
             </div>
             <div class="tree-container" id="pstree-viz"></div>
             <div class="graph-container" id="pstree-graph" style="display: none;"></div>
-            {% elif result.plugin in ['netscan', 'getsids', 'dlllist'] and result.success %}
+            {% elif result.plugin in ['netscan', 'getsids', 'dlllist', 'cmdline'] and result.success %}
             <div style="margin-bottom: 1rem;">
                 {% if result.plugin == 'netscan' %}
                 <input type="text" id="filter-netscan" placeholder="🔍 Filter by state (e.g., LISTENING, ESTABLISHED, CLOSED)..."
@@ -1251,6 +1251,10 @@
                 <input type="text" id="filter-{{ result.plugin }}" placeholder="🔍 Filter by PID..."
                        style="width: 100%; padding: 0.75rem; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 0.375rem; color: var(--text-primary); font-family: monospace;"
                        oninput="filterOutput('{{ result.plugin }}', this.value)">
+                {% elif result.plugin == 'cmdline' %}
+                <input type="text" id="filter-cmdline" placeholder="🔍 Filter by PID or process name..."
+                       style="width: 100%; padding: 0.75rem; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 0.375rem; color: var(--text-primary); font-family: monospace;"
+                       oninput="filterOutput('cmdline', this.value)">
                 {% endif %}
             </div>
             <div class="output" id="output-{{ result.plugin }}">{{ result.output }}</div>
@@ -2200,7 +2204,7 @@
 
         // Initialize original outputs on page load
         document.addEventListener('DOMContentLoaded', () => {
-            ['netscan', 'getsids', 'dlllist'].forEach(plugin => {
+            ['netscan', 'getsids', 'dlllist', 'cmdline'].forEach(plugin => {
                 const outputDiv = document.getElementById('output-' + plugin);
                 if (outputDiv) {
                     originalOutputs[plugin] = outputDiv.textContent;
@@ -2230,8 +2234,50 @@
                 filteredLines = lines.filter(line =>
                     line.toLowerCase().includes(filterLower)
                 );
-            } else if (plugin === 'getsids' || plugin === 'dlllist') {
-                // Filter by PID - match "pid: XXX" or "pid:    XXX"
+            } else if (plugin === 'getsids') {
+                // Filter by PID for getsids - format: "processname.exe (PID)" at start of section
+                const pidFilter = filterValue.trim();
+
+                // Keep header lines (first few lines before any process data)
+                let inTargetProcess = false;
+                let headersDone = false;
+
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+
+                    // Detect when headers end (first line with process name and PID in parentheses)
+                    if (!headersDone) {
+                        if (line.match(/\S+\s+\(\d+\)/)) {
+                            headersDone = true;
+                        } else {
+                            // Add header lines
+                            filteredLines.push(line);
+                            continue;
+                        }
+                    }
+
+                    // Check for process header line (format: "csrss.exe (552)")
+                    const pidMatch = line.match(/\S+\s+\((\d+)\)/);
+                    if (pidMatch) {
+                        const linePid = pidMatch[1];
+                        if (linePid === pidFilter) {
+                            inTargetProcess = true;
+                            filteredLines.push(line);
+                        } else {
+                            inTargetProcess = false;
+                        }
+                    } else if (inTargetProcess) {
+                        // Include lines belonging to target process
+                        filteredLines.push(line);
+
+                        // Stop when we hit next process or double empty line
+                        if (line.match(/\S+\s+\(\d+\)/) || (line.trim() === '' && lines[i+1] && lines[i+1].trim() === '')) {
+                            inTargetProcess = false;
+                        }
+                    }
+                }
+            } else if (plugin === 'dlllist') {
+                // Filter by PID for dlllist - match "pid: XXX" or "pid:    XXX"
                 const pidFilter = filterValue.trim();
 
                 // Keep header lines (first few lines before any process data)
@@ -2272,6 +2318,54 @@
                         }
                     }
                 }
+            } else if (plugin === 'cmdline') {
+                // Filter by PID or process name (case-insensitive)
+                const filterLower = filterValue.toLowerCase().trim();
+
+                // Keep header lines and filter sections
+                let headersDone = false;
+                let inTargetProcess = false;
+
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+
+                    // Detect when headers end (first separator line with asterisks)
+                    if (!headersDone) {
+                        if (line.match(/^\*+$/)) {
+                            headersDone = true;
+                        } else {
+                            filteredLines.push(line);
+                            continue;
+                        }
+                    }
+
+                    // Check for process header line (format: "processname.exe pid: 8260")
+                    const processMatch = line.match(/^(\S+\.exe)\s+pid:\s+(\d+)/);
+                    if (processMatch) {
+                        const processName = processMatch[1].toLowerCase();
+                        const pid = processMatch[2];
+
+                        // Check if matches filter (process name or PID)
+                        if (processName.includes(filterLower) || pid.includes(filterValue.trim())) {
+                            inTargetProcess = true;
+                            // Add separator line if not already added
+                            if (filteredLines.length > 0 && !filteredLines[filteredLines.length - 1].match(/^\*+$/)) {
+                                filteredLines.push(lines[i - 1]); // Add separator
+                            }
+                            filteredLines.push(line); // Add process line
+                        } else {
+                            inTargetProcess = false;
+                        }
+                    } else if (inTargetProcess) {
+                        // Include command line and separator for matched process
+                        filteredLines.push(line);
+
+                        // Stop after separator or at next process
+                        if (line.match(/^\*+$/) && lines[i + 1] && lines[i + 1].match(/^\S+\.exe\s+pid:/)) {
+                            inTargetProcess = false;
+                        }
+                    }
+                }
             }
 
             if (filteredLines.length === 0) {
@@ -2291,13 +2385,79 @@
             // Escape the output for safe embedding
             const escapedOutput = output.replace(/`/g, '\\`').replace(/\$/g, '\\$');
 
+            // Add filter input for handles (multi-type filter)
+            let filterHtml = '';
+            if (plugin === 'Handles') {
+                filterHtml = `
+                    <input type="text" id="modal-filter-handles" placeholder="🔍 Filter by type (e.g., File, Key, Mutant - comma-separated for multiple)..."
+                           style="width: 100%; padding: 0.75rem; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 0.375rem; color: var(--text-primary); font-family: monospace; margin-bottom: 1rem;"
+                           oninput="filterModalOutput('${plugin}', this.value)">
+                `;
+            }
+
             content.innerHTML = `
                 <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
                     <h3 style="margin: 0;">${title}</h3>
                     <button onclick="copyToClipboard(\`${escapedOutput}\`, this)" style="padding: 0.4rem 0.6rem; background: var(--accent); color: var(--bg-primary); border: none; border-radius: 0.375rem; cursor: pointer; font-size: 1.1rem; line-height: 1;">📋</button>
                 </div>
-                <pre class="output">${output || 'No results found'}</pre>
+                ${filterHtml}
+                <pre class="output" id="modal-output">${output || 'No results found'}</pre>
             `;
+
+            // Store original output for modal filtering
+            if (plugin === 'Handles') {
+                window.modalOriginalOutput = output;
+            }
+        }
+
+        // Filter modal output (for handles multi-type filter)
+        function filterModalOutput(plugin, filterValue) {
+            const outputDiv = document.getElementById('modal-output');
+            if (!outputDiv || !window.modalOriginalOutput) return;
+
+            const originalText = window.modalOriginalOutput;
+
+            if (!filterValue || filterValue.trim() === '') {
+                outputDiv.textContent = originalText;
+                return;
+            }
+
+            const lines = originalText.split('\n');
+            let filteredLines = [];
+
+            if (plugin === 'Handles') {
+                // Multi-type filter: split by comma, trim, and filter (case-insensitive)
+                const types = filterValue.split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0);
+
+                // Keep header lines
+                let headersDone = false;
+
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i];
+
+                    // Detect when headers end (first line with handle info)
+                    if (!headersDone) {
+                        if (line.match(/0x[0-9a-f]+\s+\d+\s+0x[0-9a-f]+/i)) {
+                            headersDone = true;
+                        } else {
+                            filteredLines.push(line);
+                            continue;
+                        }
+                    }
+
+                    // Check if line contains any of the types
+                    const lineLower = line.toLowerCase();
+                    if (types.some(type => lineLower.includes(type))) {
+                        filteredLines.push(line);
+                    }
+                }
+            }
+
+            if (filteredLines.length === 0) {
+                outputDiv.textContent = 'No results match the filter "' + filterValue + '"';
+            } else {
+                outputDiv.textContent = filteredLines.join('\n');
+            }
         }
 
         // Show error modal
